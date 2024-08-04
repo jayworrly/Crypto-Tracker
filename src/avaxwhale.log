@@ -18,3 +18,7 @@
 2024-08-04 12:49:20 - INFO - Starting AvaxWhale Transaction Tracker
 2024-08-04 12:49:20 - INFO - Connected to Avalanche network
 2024-08-04 12:49:21 - ERROR - Error during monitoring: unsupported operand type(s) for *: 'decimal.Decimal' and 'float'
+2024-08-04 12:59:45 - INFO - Found 3 large transactions
+2024-08-04 12:59:45 - INFO - Large transaction detected: Hash=0x6c0d80bcfe32e4fe53b52d663e388cc207fd34f767321157791bc4dacfb22e6b, Value=893.73 AVAX, Value in USD=19563.65, From=0x5400B32B7C57d351963A420485f2D519643a079a, To=0xBc761ee2Bb6eA585d2C400751b1670D46B4A3417
+2024-08-04 12:59:45 - INFO - Large transaction detected: Hash=0x063f5a525e18f30cd547bbb697c152e089bba2122c2b574effaaec205a8c2a19, Value=2020.25 AVAX, Value in USD=44223.23, From=0xB486738fa5859d08C841c7EB20b5Ef2B5502F38b, To=0x17395Ad76b236FABeaC3634b78fF8F6970222199
+2024-08-04 12:59:45 - INFO - Large transaction detected: Hash=0xa5472687b60aacbf08d7971cac04f6b18626af0c4206f10de47ddc0a94caa60c, Value=514.44 AVAX, Value in USD=11261.00, From=0xABa2D404C5C41da5964453A368aFF2604Ae80A14, To=0x8E5686FFbAb85FE7d181967b1e2aB4ef3491D8B8
