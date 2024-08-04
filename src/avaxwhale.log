@@ -1,0 +1,20 @@
+2024-08-04 12:39:03 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-04 12:39:03 - INFO - Connected to Avalanche network
+2024-08-04 12:39:04 - INFO - Analyzing 15 transactions
+2024-08-04 12:39:04 - INFO - Transaction analysis completed
+2024-08-04 12:39:04 - INFO - Transaction Analysis Results:
+2024-08-04 12:39:04 - INFO - Analyzing whale activity for address 0xYourWhaleAddressHere over 7d
+2024-08-04 12:39:04 - ERROR - Error during monitoring: 'BlockchainConnector' object has no attribute 'get_address_transactions'
+2024-08-04 12:40:40 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-04 12:40:40 - INFO - Connected to Avalanche network
+2024-08-04 12:40:41 - INFO - Analyzing 21 transactions
+2024-08-04 12:40:41 - INFO - Transaction analysis completed
+2024-08-04 12:40:41 - INFO - Transaction Analysis Results:
+2024-08-04 12:40:41 - INFO - Fetching transactions for address 0xYourWhaleAddressHere
+2024-08-04 12:40:51 - INFO - Found 0 transactions for address 0xYourWhaleAddressHere
+2024-08-04 12:40:51 - INFO - Analyzing 0 transactions
+2024-08-04 12:40:51 - INFO - Transaction analysis completed
+2024-08-04 12:40:51 - INFO - Whale Activity for Address 0xYourWhaleAddressHere:
+2024-08-04 12:49:20 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-04 12:49:20 - INFO - Connected to Avalanche network
+2024-08-04 12:49:21 - ERROR - Error during monitoring: unsupported operand type(s) for *: 'decimal.Decimal' and 'float'
