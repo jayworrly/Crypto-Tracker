@@ -68,7 +68,7 @@ class TransactionAnalyzer:
         """
         # This could be set in configuration, or dynamically calculated
         # based on recent transaction history.
-        return 100  # Example: transactions over 100 AVAX are considered high-value
+        return 500  # Example: transactions over 100 AVAX are considered high-value
 
     def get_whale_activity(self, address: str, time_period: str) -> Dict[str, Any]:
         """
