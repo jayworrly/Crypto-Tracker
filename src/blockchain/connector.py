@@ -1,4 +1,4 @@
-# src/blockchain/connector.py
+## src/blockchain/connector.py
 
 import logging
 import time
@@ -6,6 +6,7 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 import yaml
 import requests
+from blockchain.transactions import analyze_transaction  # Use full import path
 
 class BlockchainConnector:
     def __init__(self, config_path):
@@ -44,37 +45,4 @@ class BlockchainConnector:
             return data['avalanche-2']['usd']
         except Exception as e:
             logging.error(f"Error fetching AVAX price: {e}")
-            return None
-
-    def get_address_transactions(self, address, start_block=None, end_block=None):
-        """Fetch transactions for a specific address over a range of blocks."""
-        logging.info(f"Fetching transactions for address {address}")
-
-        if start_block is None:
-            start_block = self.w3.eth.block_number - 100  # Example: Start from 100 blocks ago
-        if end_block is None:
-            end_block = self.w3.eth.block_number  # Default to the latest block
-
-        transactions = []
-
-        for block_number in range(start_block, end_block + 1):
-            block = self.w3.eth.get_block(block_number, full_transactions=True)
-            for tx in block['transactions']:
-                if tx['from'] == address or tx['to'] == address:
-                    transactions.append(tx)
-
-        logging.info(f"Found {len(transactions)} transactions for address {address}")
-        return transactions
-
-    def get_transaction_receipt(self, tx_hash):
-        """
-        Get the transaction receipt for a given transaction hash.
-
-        :param tx_hash: The transaction hash as a hex string
-        :return: Transaction receipt dictionary
-        """
-        try:
-            return self.w3.eth.get_transaction_receipt(tx_hash)
-        except Exception as e:
-            logging.error(f"Error fetching transaction receipt for {tx_hash}: {str(e)}")
             return None
