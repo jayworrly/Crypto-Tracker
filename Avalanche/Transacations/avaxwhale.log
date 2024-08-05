@@ -1,0 +1,20 @@
+2024-08-05 14:36:25 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 14:36:25 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-05 14:36:25 - INFO - [33mPress CTRL+C to quit[0m
+2024-08-05 14:36:25 - INFO - Connected to Avalanche network
+2024-08-05 14:36:25 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: 'avalanche_eco/cexhotwallet.txt'
+2024-08-05 14:36:25 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 14:36:40 - ERROR - Error loading index page: index.html
+2024-08-05 14:36:40 - INFO - 127.0.0.1 - - [05/Aug/2024 14:36:40] "GET / HTTP/1.1" 200 -
+2024-08-05 14:36:40 - INFO - 127.0.0.1 - - [05/Aug/2024 14:36:40] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2024-08-05 14:38:56 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 14:38:57 - INFO - Connected to Avalanche network
+2024-08-05 14:48:03 - INFO - Found 1 large transactions
+2024-08-05 14:48:03 - INFO - Large transaction detected: Hash=0x502cd2b37062c68cfc9730f6eba9eefd72aff9fd940c66e619500850f480942d, Value=16045.00 AVAX, Value in USD=317851.44, From=0x1A999f41ADA45Dfd6Bd718875ffC4eCa4133Bfd7, To=0x3DD87411a3754deea8cc52C4CF57E2fC254924Cc, Type=unknown
+2024-08-05 14:57:09 - INFO - Found 1 large transactions
+2024-08-05 14:57:09 - INFO - Large transaction detected: Hash=0x5dfd6e01cf782c1233d4bde0a4cbc68b45784cedeeb7ac537ee2c9a623d86564, Value=742.36 AVAX, Value in USD=14706.14, From=0x31307EF22C77Cc89CD7e61246608F15b82D09FEd, To=0x18556DA13313f3532c54711497A8FedAC273220E, Type=unknown
+2024-08-05 14:58:10 - INFO - Found 1 large transactions
+2024-08-05 14:58:10 - INFO - Large transaction detected: Hash=0x6965cbf6b72f9484e737e74307acbf2451d789b0ff482ad31a229d1e436926ed, Value=742.33 AVAX, Value in USD=14705.50, From=0x31307EF22C77Cc89CD7e61246608F15b82D09FEd, To=0x18556DA13313f3532c54711497A8FedAC273220E, Type=unknown
+2024-08-05 15:00:11 - INFO - Found 1 large transactions
+2024-08-05 15:00:11 - INFO - Large transaction detected: Hash=0xc0f08257e45236c1ecbb09f6c6b0b8711e8b782becdd51f5555775d143285a53, Value=27519.88 AVAX, Value in USD=545168.79, From=0x6e45178FF302011a39c56c1814fEeD667aC4Ce0D, To=0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9, Type=unknown

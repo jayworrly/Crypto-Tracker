@@ -1,28 +1,37 @@
+# app/main.py
+
 import argparse
 import logging
 import time
 from decimal import Decimal
+import sqlite3
 from web3 import Web3
 from blockchain.connector import BlockchainConnector
 from analysis import TransactionAnalyzer
 from utils.helpers import setup_logging
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
-    parser.add_argument("--config", default="../config/config.yaml", help="Path to configuration file")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
-    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
-    return parser.parse_args()
+# Path to the SQLite database
+DATABASE = 'app/database/avalanche_addresses.db'
 
-def read_addresses_from_file(file_path):
-    """Read addresses and labels from a text file."""
-    addresses = {}
-    with open(file_path, 'r') as file:
-        for line in file.readlines():
-            if line.strip():
-                address, label = line.strip().split(',', 1)
-                addresses[address.strip().lower()] = label.strip()
-    return addresses
+def connect_db():
+    """Establish a connection to the SQLite database."""
+    return sqlite3.connect(DATABASE)
+
+def load_addresses_from_db():
+    """Load addresses and labels from the database."""
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT address, label, category FROM addresses")
+    addresses = cursor.fetchall()
+    conn.close()
+
+    # Organize addresses by category
+    address_categories = {}
+    for address, label, category in addresses:
+        if category not in address_categories:
+            address_categories[category] = {}
+        address_categories[category][address.lower()] = label
+    return address_categories
 
 def classify_transaction(tx, address_categories):
     """Classify a transaction based on address categories."""
@@ -34,8 +43,14 @@ def classify_transaction(tx, address_categories):
     logging.debug(f"Unknown address: to={tx['to']}, from={tx['from']}")
     return 'unknown'
 
-def main():
-    args = parse_arguments()
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
+    parser.add_argument("--config", default="../config/config.yaml", help="Path to configuration file")
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
+    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
+    return parser.parse_args()
+
+def track_transactions(args):
     setup_logging(args.log_level)
 
     logging.info("Starting AvaxWhale Transaction Tracker")
@@ -48,18 +63,8 @@ def main():
         # Define a large transaction threshold (in USD)
         large_transaction_threshold = 10000  # Set your threshold here, e.g., $10,000
 
-        # Read addresses from files
-        address_categories = {
-            'CEX': read_addresses_from_file('avalanche_eco/cexhotwallet.txt'),
-            'DeFi': read_addresses_from_file('avalanche_eco/defi.txt'),
-            'Stablecoins': read_addresses_from_file('avalanche_eco/stablecoins.txt'),
-            'Meme': read_addresses_from_file('avalanche_eco/meme.txt'),
-            'LST': read_addresses_from_file('avalanche_eco/lst.txt'),
-            'Game': read_addresses_from_file('avalanche_eco/game.txt'),
-            'Native': read_addresses_from_file('avalanche_eco/native.txt'),
-            'DEX': read_addresses_from_file('avalanche_eco/dex.txt'),
-            'TraderJoe': read_addresses_from_file('avalanche_eco/traderjoe.txt')
-        }
+        # Load addresses from the database
+        address_categories = load_addresses_from_db()
 
         # Log the number of addresses loaded for each category
         for category, addresses in address_categories.items():
@@ -105,4 +110,5 @@ def main():
     logging.info("AvaxWhale Transaction Tracker finished")
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    track_transactions(args)
