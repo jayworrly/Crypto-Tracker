@@ -1,10 +1,7 @@
-# main.py
-
 import argparse
 import logging
 import time
 from pprint import pprint
-from decimal import Decimal  # Import Decimal
 from web3 import Web3
 from blockchain.connector import BlockchainConnector
 from analysis import TransactionAnalyzer
@@ -36,20 +33,21 @@ def main():
                 # Fetch recent transactions
                 transactions = connector.get_recent_transactions()
 
-                # Filter for large transactions
-                large_transactions = [
-                    tx for tx in transactions
-                    if float(Web3.from_wei(tx['value'], 'ether')) * float(connector.avax_to_usd) >= large_transaction_threshold
-                ]
+                # Analyze transactions
+                analysis_results = analyzer.analyze_transactions(transactions)
 
-                # Analyze large transactions
-                if large_transactions:
-                    logging.info(f"Found {len(large_transactions)} large transactions")
-                    for tx in large_transactions:
+                # Log the analysis results
+                logging.info("Transaction Analysis Results:")
+                pprint(analysis_results)
+
+                # Highlight labeled transactions
+                for label, txs in analysis_results["labeled_transactions"].items():
+                    logging.info(f"Transactions for {label}:")
+                    for tx in txs:
                         tx_value_avax = Web3.from_wei(tx['value'], 'ether')
                         tx_value_usd = float(tx_value_avax) * float(connector.avax_to_usd)
-                        logging.info(f"Large transaction detected: Hash={tx['hash'].hex()}, Value={tx_value_avax:.2f} AVAX, "
-                                     f"Value in USD={tx_value_usd:.2f}, From={tx['from']}, To={tx['to']}")
+                        logging.info(f"Transaction to {label}: Hash={tx['hash'].hex()}, Value={tx_value_avax:.2f} AVAX, "
+                                     f"Value in USD={tx_value_usd:.2f}, From={tx['from']}")
 
                 # Sleep for the specified interval
                 time.sleep(args.interval)
@@ -65,5 +63,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

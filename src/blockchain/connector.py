@@ -6,7 +6,6 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 import yaml
 import requests
-from blockchain.transactions import analyze_transaction
 
 class BlockchainConnector:
     def __init__(self, config_path):
@@ -66,3 +65,16 @@ class BlockchainConnector:
 
         logging.info(f"Found {len(transactions)} transactions for address {address}")
         return transactions
+
+    def get_transaction_receipt(self, tx_hash):
+        """
+        Get the transaction receipt for a given transaction hash.
+
+        :param tx_hash: The transaction hash as a hex string
+        :return: Transaction receipt dictionary
+        """
+        try:
+            return self.w3.eth.get_transaction_receipt(tx_hash)
+        except Exception as e:
+            logging.error(f"Error fetching transaction receipt for {tx_hash}: {str(e)}")
+            return None
