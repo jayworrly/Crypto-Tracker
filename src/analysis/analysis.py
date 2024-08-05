@@ -1,8 +1,7 @@
-# src/analysis/analysis.py
-
 import logging
 from collections import defaultdict
 from typing import List, Dict, Any
+from utils.token_loader import load_token_addresses
 
 class TransactionAnalyzer:
     def __init__(self, blockchain_connector):
@@ -18,12 +17,16 @@ class TransactionAnalyzer:
         """
         self.logger.info(f"Analyzing {len(transactions)} transactions")
         
+        # Load token labels
+        token_labels = load_token_addresses()
+
         analysis_results = {
             "total_transactions": len(transactions),
             "total_value": sum(tx.get('value', 0) for tx in transactions),
             "unique_addresses": set(),
             "transaction_types": defaultdict(int),
-            "high_value_transactions": []
+            "high_value_transactions": [],
+            "labeled_transactions": defaultdict(list)
         }
 
         for tx in transactions:
@@ -36,8 +39,15 @@ class TransactionAnalyzer:
             analysis_results["transaction_types"][tx_type] += 1
             
             # Identify high-value transactions
-            if tx.get('value', 0) > self._get_high_value_threshold():
+            usd_value = tx['value'] * tx['exchange_rate']  # Assuming tx includes exchange_rate
+            if usd_value >= self._get_high_value_threshold():
                 analysis_results["high_value_transactions"].append(tx)
+            
+            # Label transactions with known tokens
+            contract_address = tx.get('contract')
+            if contract_address in token_labels:
+                token_label = token_labels[contract_address]
+                analysis_results["labeled_transactions"][token_label].append(tx)
 
         analysis_results["unique_addresses"] = len(analysis_results["unique_addresses"])
 
@@ -51,8 +61,6 @@ class TransactionAnalyzer:
         :param transaction: Transaction dictionary
         :return: Category of the transaction
         """
-        # This is a simplified categorization. You may want to expand this
-        # based on your specific needs and the structure of your transactions.
         if transaction.get('to') is None:
             return "contract_creation"
         elif transaction.get('input') and transaction.get('input') != '0x':
@@ -66,9 +74,7 @@ class TransactionAnalyzer:
         
         :return: Threshold value
         """
-        # This could be set in configuration, or dynamically calculated
-        # based on recent transaction history.
-        return 100  # Example: transactions over 100 AVAX are considered high-value
+        return 10000  # Example: transactions over 10,000 USD are considered high-value
 
     def get_whale_activity(self, address: str, time_period: str) -> Dict[str, Any]:
         """
