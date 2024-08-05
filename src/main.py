@@ -1,4 +1,3 @@
-import argparse
 import logging
 import time
 from pprint import pprint
@@ -6,19 +5,18 @@ from web3 import Web3
 from blockchain.connector import BlockchainConnector
 from analysis import TransactionAnalyzer
 from utils.helpers import setup_logging
+import argparse
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
     parser.add_argument("--config", default="../config/config.yaml", help="Path to configuration file")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
     parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    setup_logging(args.log_level)
 
-    logging.info("Starting AvaxWhale Transaction Tracker")
+    logging.info("Starting Cryptotracking Transaction Tracker")
 
     try:
         # Initialize blockchain connector and transaction analyzer

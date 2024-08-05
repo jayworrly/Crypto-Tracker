@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import List, Dict, Any
 from web3 import Web3
+from decimal import Decimal
 from utils.token_loader import load_token_addresses
 
 class TransactionAnalyzer:
@@ -10,6 +11,7 @@ class TransactionAnalyzer:
         self.logger = logging.getLogger(__name__)
         self.token_labels = load_token_addresses()  # Load token labels from files
         self.erc20_transfer_signature = Web3.keccak(text="Transfer(address,address,uint256)").hex()
+        self.high_value_threshold_usd = 10000  # $10,000 threshold for high-value transactions
 
     def analyze_transactions(self, transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -30,48 +32,84 @@ class TransactionAnalyzer:
         }
 
         for tx in transactions:
-            tx_hash = tx['hash']
-            try:
-                receipt = self.blockchain_connector.get_transaction_receipt(tx_hash)
-                
-                # Parse transaction logs for ERC-20 transfers
-                for log in receipt.get('logs', []):
-                    if log['topics'][0] == self.erc20_transfer_signature:
-                        from_address = Web3.to_checksum_address('0x' + log['topics'][1].hex()[26:])
-                        to_address = Web3.to_checksum_address('0x' + log['topics'][2].hex()[26:])
-                        value = int(log['data'], 16)
-                        value_avax = Web3.from_wei(value, 'ether')
-                        
-                        analysis_results["total_value"] += value_avax
-                        analysis_results["unique_addresses"].update([from_address, to_address])
-                        
-                        # Convert value to USD
-                        value_usd = value_avax * float(self.blockchain_connector.avax_to_usd)
+            self._analyze_transaction(tx, analysis_results)
 
-                        # Check if the transaction involves a labeled contract
-                        if log['address'].lower() in self.token_labels:
-                            label = self.token_labels[log['address'].lower()]
-                            analysis_results["labeled_transactions"][label].append(tx)
-                            self.logger.info(f"Transaction to {label}: Hash={tx['hash'].hex()}, "
-                                             f"Value={value_avax:.2f} AVAX, "
-                                             f"Value in USD={value_usd:.2f}, "
-                                             f"From={from_address}")
-                        
-                        # Identify high-value transactions
-                        if value_usd > self._get_high_value_threshold():
-                            analysis_results["high_value_transactions"].append({
-                                "hash": tx_hash.hex(),
-                                "from": from_address,
-                                "to": to_address,
-                                "value_usd": value_usd
-                            })
-            except Exception as e:
-                self.logger.error(f"Error processing transaction {tx_hash.hex()}: {str(e)}")
-        
         analysis_results["unique_addresses"] = len(analysis_results["unique_addresses"])
-
         self.logger.info("Transaction analysis completed")
         return analysis_results
+
+    def _analyze_transaction(self, tx: Dict[str, Any], analysis_results: Dict[str, Any]):
+        tx_hash = tx['hash']
+        try:
+            # Analyze native AVAX transfer
+            self._analyze_avax_transfer(tx, analysis_results)
+
+            # Analyze ERC-20 transfers
+            receipt = self.blockchain_connector.get_transaction_receipt(tx_hash)
+            if receipt:
+                self._analyze_erc20_transfers(tx, receipt, analysis_results)
+            
+        except Exception as e:
+            self.logger.error(f"Error processing transaction {tx_hash.hex()}: {str(e)}")
+
+    def _analyze_avax_transfer(self, tx: Dict[str, Any], analysis_results: Dict[str, Any]):
+        tx_value_wei = tx['value']
+        tx_value_avax = Web3.from_wei(tx_value_wei, 'ether')
+        tx_value_usd = float(tx_value_avax) * float(self.blockchain_connector.avax_to_usd)
+
+        analysis_results["total_value"] += tx_value_avax
+        analysis_results["unique_addresses"].update([tx['from'], tx['to']])
+        analysis_results["transaction_types"][self._categorize_transaction(tx)] += 1
+
+        if tx_value_usd >= self.high_value_threshold_usd:
+            high_value_tx = {
+                "hash": tx['hash'].hex(),
+                "from": tx['from'],
+                "to": tx['to'],
+                "value_avax": float(tx_value_avax),
+                "value_usd": tx_value_usd,
+                "token": "AVAX"
+            }
+            analysis_results["high_value_transactions"].append(high_value_tx)
+            self.logger.info(f"Large AVAX transaction detected: Hash={tx['hash'].hex()}, "
+                             f"Value={tx_value_usd:.2f} USD, From={tx['from']}, To={tx['to']}")
+
+    def _analyze_erc20_transfers(self, tx: Dict[str, Any], receipt: Dict[str, Any], analysis_results: Dict[str, Any]):
+        for log in receipt.get('logs', []):
+            if log['topics'][0].hex() == self.erc20_transfer_signature:
+                token_address = log['address'].lower()
+                if token_address in self.token_labels:
+                    from_address = Web3.to_checksum_address('0x' + log['topics'][1].hex()[26:])
+                    to_address = Web3.to_checksum_address('0x' + log['topics'][2].hex()[26:])
+                    
+                    try:
+                        # Remove '0x' prefix if present and ensure even length
+                        data = log['data'][2:] if log['data'].startswith('0x') else log['data']
+                        data = data.zfill(len(data) + len(data) % 2)
+                        
+                        # Use int.from_bytes() for more robust parsing
+                        value = int.from_bytes(bytes.fromhex(data), byteorder='big')
+                    except (ValueError, TypeError) as e:
+                        self.logger.warning(f"Invalid value data in transaction {tx['hash'].hex()}: {log['data']} - Error: {e}")
+                        continue
+
+                    value_token = Web3.from_wei(value, 'ether')
+                    value_usd = self._get_token_value_usd(token_address, value_token)
+
+                    if value_usd >= self.high_value_threshold_usd:
+                        high_value_tx = {
+                            "hash": tx['hash'].hex(),
+                            "from": from_address,
+                            "to": to_address,
+                            "value_token": float(value_token),
+                            "value_usd": value_usd,
+                            "token": self.token_labels[token_address]
+                        }
+                        analysis_results["high_value_transactions"].append(high_value_tx)
+                        analysis_results["labeled_transactions"][self.token_labels[token_address]].append(high_value_tx)
+                        self.logger.info(f"Large {self.token_labels[token_address]} transaction detected: "
+                                         f"Hash={tx['hash'].hex()}, Value={value_usd:.2f} USD, "
+                                         f"From={from_address}, To={to_address}")
 
     def _categorize_transaction(self, transaction: Dict[str, Any]) -> str:
         if transaction.get('to') is None:
@@ -81,8 +119,10 @@ class TransactionAnalyzer:
         else:
             return "transfer"
 
-    def _get_high_value_threshold(self) -> float:
-        return 10000  # Example threshold in USD
+    def _get_token_value_usd(self, token_address: str, value_token: Decimal) -> float:
+        # This is a placeholder. In a real implementation, you'd fetch the token's price
+        # from an oracle or price feed. For now, we'll assume 1:1 with USD for simplicity.
+        return float(value_token)
 
     def get_whale_activity(self, address: str, time_period: str) -> Dict[str, Any]:
         self.logger.info(f"Analyzing whale activity for address {address} over {time_period}")
