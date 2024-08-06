@@ -30,3 +30,46 @@
 2024-08-05 15:36:25 - INFO - Large transaction detected: Hash=0x74db2419f7cd5ff235fd8e41083b75c145fe781602bd62df6e23815f12cea335, Value=1000.26 AVAX, Value in USD=19655.10, From=0x67B5E3420352BcF7db3F5dd050AFa0A2c6bEB3Eb, To=0xDed5361C318333F07d31a165D07dd76041c6262a, Type=unknown
 2024-08-05 15:43:29 - INFO - Found 1 large transactions
 2024-08-05 15:43:29 - INFO - Large transaction detected: Hash=0xc778ac849eb6ac9c093477b9776be8f2348a3b5d50e88d30f98334e9df3c0950, Value=1927.75 AVAX, Value in USD=37880.27, From=0x9c82B2720E57A7535523421d80966326436dE8B5, To=0x7eD53F6E3dE6B2b4156FA8E618506E60D8E65843, Type=unknown
+2024-08-05 17:39:27 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:39:27 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:39:27 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:39:30 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:39:30 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:39:30 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:42:54 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:42:54 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../../config/config.yaml'
+2024-08-05 17:42:54 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:43:31 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:43:31 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../../config/config.yaml'
+2024-08-05 17:43:31 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:45:34 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:45:34 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:45:34 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:46:04 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:46:04 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:46:04 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:46:10 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:46:10 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:46:10 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:46:19 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:46:19 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:46:19 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:47:45 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:47:45 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../config/config.yaml'
+2024-08-05 17:47:45 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:50:04 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:50:04 - ERROR - An error occurred during initialization: [Errno 2] No such file or directory: '../../config/config.yaml'
+2024-08-05 17:50:04 - INFO - AvaxWhale Transaction Tracker finished
+2024-08-05 17:51:41 - INFO - Starting AvaxWhale Transaction Tracker
+2024-08-05 17:51:41 - INFO - Connected to Avalanche network
+2024-08-05 18:05:51 - INFO - Found 1 large transactions
+2024-08-05 18:05:51 - INFO - Large transaction detected: Hash=0x2ab078532c5842003245f3a46932d69de5617452aef67a42f9fe3696a06475d4, Value=2515.04 AVAX, Value in USD=51306.87, From=0xEF74440e36bC3303004BfabCe928C2c3c4b0A381, To=0xA16F524a804BEaED0d791De0aa0b5836295A2a84, Type=unknown
+2024-08-05 18:11:55 - INFO - Found 1 large transactions
+2024-08-05 18:11:55 - INFO - Large transaction detected: Hash=0x3a895fb2bc60ca95d589448d6b38340af7dce400063b8d7ae38cfa6e90c186e8, Value=500.00 AVAX, Value in USD=10200.00, From=0x827290e45293734E4fb01BB52622b05233Cb34d7, To=0x6e45178FF302011a39c56c1814fEeD667aC4Ce0D, Type=unknown
+2024-08-05 18:22:01 - INFO - Found 2 large transactions
+2024-08-05 18:22:01 - INFO - Large transaction detected: Hash=0x13b7f2143fc2da39e6c57886d27bdecb5141f7c22c62d0d591b4ef8de27ef2f4, Value=578.81 AVAX, Value in USD=11807.82, From=0xB80D90fcf2Ed0e4FeBE02d2a209109Bf1F62DF95, To=0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7, Type=native: WAVAX
+2024-08-05 18:22:01 - INFO - Large transaction detected: Hash=0x46ba9601476a1a0cc6a40d86365ee6d3bb107455a728519e86773e03a2e4e3f3, Value=586.80 AVAX, Value in USD=11970.64, From=0x6D8bE5cdf0d7DEE1f04E25FD70B001AE3B907824, To=0xB80D90fcf2Ed0e4FeBE02d2a209109Bf1F62DF95, Type=unknown
+2024-08-05 18:30:06 - INFO - Found 1 large transactions
+2024-08-05 18:30:06 - INFO - Large transaction detected: Hash=0x3167262cc43e5c485018120ea10d8aa155c670138f5c62c7af33ced67eb1155e, Value=8499.99 AVAX, Value in USD=173399.89, From=0x6e45178FF302011a39c56c1814fEeD667aC4Ce0D, To=0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9, Type=cexhotwallet: Binance: Hot Wallet
+2024-08-05 18:43:15 - INFO - Found 1 large transactions
+2024-08-05 18:43:15 - INFO - Large transaction detected: Hash=0x7c1fd03e0c7d3e8217de595686817652cba4e4c2aef90714ae82c7d4dda469f2, Value=7245.00 AVAX, Value in USD=147798.00, From=0x5FB8758411E681070c263ca63267B7C7E541A695, To=0x18556DA13313f3532c54711497A8FedAC273220E, Type=traderjoe: LBRouter

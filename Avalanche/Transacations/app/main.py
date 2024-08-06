@@ -1,50 +1,25 @@
+# app/main.py
+
 import argparse
 import logging
 import time
-import sqlite3
+from decimal import Decimal
 from web3 import Web3
 from blockchain.connector import BlockchainConnector
 from analysis import TransactionAnalyzer
 from utils.helpers import setup_logging
-from database.manage_data import check_database_structure
 import os
 
-# Ensure the correct path to the SQLite database
-DATABASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'database', 'avalanche_addresses.db'))
+AVALANCHE_ECO_DIR = 'app/avalanche_eco'
 
-def connect_db():
-    """Establish a connection to the SQLite database."""
-    try:
-        conn = sqlite3.connect(DATABASE)
-        logging.info("Successfully connected to the database.")
-        return conn
-    except sqlite3.Error as e:
-        logging.error(f"Failed to connect to database: {e}")
-        return None
-
-def load_addresses_from_db():
-    """Load addresses and labels from the database."""
-    conn = connect_db()
-    if conn is None:
-        logging.error("Database connection could not be established.")
-        return {}
-
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT address, label, category FROM addresses")
-        addresses = cursor.fetchall()
-        conn.close()
-
-        # Organize addresses by category
-        address_categories = {}
-        for address, label, category in addresses:
-            if category not in address_categories:
-                address_categories[category] = {}
-            address_categories[category][address.lower()] = label
-        return address_categories
-    except sqlite3.Error as e:
-        logging.error(f"Error loading addresses from database: {e}")
-        return {}
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
+    config_path = os.path.abspath('config/config.yaml')
+    print(f"Resolved config path: {config_path}")  # Debugging line
+    parser.add_argument("--config", default=config_path, help="Path to configuration file")
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
+    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
+    return parser.parse_args()
 
 def classify_transaction(tx, address_categories):
     """Classify a transaction based on address categories."""
@@ -56,27 +31,30 @@ def classify_transaction(tx, address_categories):
     logging.debug(f"Unknown address: to={tx['to']}, from={tx['from']}")
     return 'unknown'
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
-    parser.add_argument("--config", default="../config/config.yaml", help="Path to configuration file")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
-    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
-    return parser.parse_args()
+def load_addresses_from_files(directory):
+    """Load addresses and labels from text files in a given directory."""
+    address_categories = {}
+    for filename in os.listdir(directory):
+        if filename.endswith(".txt"):
+            category = filename.replace(".txt", "")
+            address_categories[category] = {}
+
+            filepath = os.path.join(directory, filename)
+            with open(filepath, 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if line:
+                        try:
+                            address, label = line.split(',', 1)
+                            address_categories[category][address.strip().lower()] = label.strip()
+                        except ValueError as e:
+                            logging.error(f"Error parsing line '{line}' in {filename}: {e}")
+    return address_categories
 
 def track_transactions(args):
     setup_logging(args.log_level)
 
     logging.info("Starting AvaxWhale Transaction Tracker")
-    logging.info(f"Database path: {DATABASE}")
-
-    # Check database structure
-    check_database_structure()
-
-    # Ensure database connection
-    conn = connect_db()
-    if not conn:
-        logging.error("Failed to establish database connection. Exiting.")
-        return
 
     try:
         # Initialize blockchain connector and transaction analyzer
@@ -86,8 +64,8 @@ def track_transactions(args):
         # Define a large transaction threshold (in USD)
         large_transaction_threshold = 10000  # Set your threshold here, e.g., $10,000
 
-        # Load addresses from the database
-        address_categories = load_addresses_from_db()
+        # Load addresses from the files in the avalanche_eco directory
+        address_categories = load_addresses_from_files(AVALANCHE_ECO_DIR)
 
         # Log the number of addresses loaded for each category
         for category, addresses in address_categories.items():
