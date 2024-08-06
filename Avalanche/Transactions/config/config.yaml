@@ -1,0 +1,6 @@
+avalanche:
+  rpc_url: "https://api.avax.network/ext/bc/C/rpc"
+  
+  logging:
+  log_level: "INFO"
+  log_file: "avaxwhale.log"
