@@ -44,13 +44,14 @@ def load_token_mappings(filepath):
 
 def load_known_routers(filepath):
     """Load known router addresses from a file."""
-    known_routers = set()
+    known_routers = {}
     try:
         with open(filepath, 'r') as file:
             for line in file:
                 line = line.strip()
                 if line and not line.startswith('#'):  # Ignore empty lines and comments
-                    known_routers.add(line.lower())  # Store as lowercase for consistency
+                    address, name = line.split(',', 1)  # Expecting "address,name" format
+                    known_routers[address.lower()] = name.strip()  # Store as lowercase for consistency
         logging.info(f"Loaded {len(known_routers)} known router addresses from {filepath}")
     except FileNotFoundError as e:
         logging.error(f"Router file not found: {e}")
@@ -85,17 +86,17 @@ def fetch_token_price(token_info):
 
 def track_transactions(args):
     setup_logging(args.log_level)
-    logging.info("Starting AvaxWhale Transaction Tracker")
+    logging.info("Starting Avalanche Transaction Tracker")
 
     try:
         connector = BlockchainConnector(args.config)
-        large_transaction_threshold = Decimal('5000')  # AVAX threshold in USD
-        token_transaction_threshold = Decimal('1000')   # Threshold for token transactions in USD
+        large_transaction_threshold = Decimal('1000')  # AVAX threshold in USD
+        token_transaction_threshold = Decimal('500')   # Threshold for token transactions in USD
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         avalanche_eco_dir = os.path.join(current_dir, 'avalanche_eco')
         token_mapping_file = os.path.join(avalanche_eco_dir, 'token_mapping.txt')
-        routers_file = os.path.join(avalanche_eco_dir, 'routers.txt')
+        routers_file = os.path.join(avalanche_eco_dir, 'router.txt')  # Ensure correct filename
         token_mappings = load_token_mappings(token_mapping_file)
         known_routers = load_known_routers(routers_file)
 
@@ -122,11 +123,12 @@ def track_transactions(args):
                             logging.info(f"Large transaction detected: Hash={tx['hash'].hex()}, "
                                          f"Value={tx_value_avax:.2f} AVAX, Value in USD={tx_value_usd:.2f}, "
                                          f"From={tx['from']}, To={tx['to']}")
-                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, erc20_abi)
+                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, erc20_abi, known_routers)
 
                         # Check if the transaction is to a known router
                         if tx['to'] and tx['to'].lower() in known_routers:
-                            logging.info(f"Transaction involves a known DEX router")
+                            router_name = known_routers[tx['to'].lower()]
+                            logging.info(f"Dex: {router_name}")
                             try:
                                 # Decode swap transactions
                                 if tx['input'].startswith(b'\x38\xed\x17\x39'):  # swapExactTokensForTokens
@@ -180,8 +182,4 @@ def track_transactions(args):
     except Exception as e:
         logging.error(f"An error occurred during initialization: {str(e)}", exc_info=True)
 
-    logging.info("AvaxWhale Transaction Tracker finished")
-
-if __name__ == "__main__":
-    args = parse_arguments()
-    track_transactions(args)
+    logging.info("Avalanche Transaction Tracker finished")

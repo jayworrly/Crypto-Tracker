@@ -50,7 +50,7 @@ def fetch_dexscreener_data(pair_id, max_retries=3):
     logging.error(f"Failed to fetch data for pair {pair_id} after {max_retries} attempts")
     return None
 
-def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc20_abi):
+def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc20_abi, known_routers):
     """
     Analyze a single transaction and print relevant information.
 
@@ -60,6 +60,7 @@ def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc2
     :param avax_to_usd: The conversion rate from AVAX to USD
     :param token_mappings: A dictionary of token contract addresses to token info
     :param erc20_abi: The ABI for ERC20 token contracts
+    :param known_routers: A dictionary of known router addresses and their names
     """
     try:
         # Convert Web3 types to Python types
@@ -76,6 +77,8 @@ def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc2
         gas_used = Decimal(tx_receipt['gasUsed'])
         actual_gas_cost = gas_used * gas_price / Decimal('1e9')
 
+        total_cost = value + actual_gas_cost
+
         print(f"Transaction Analysis:")
         print(f"Hash: {tx['hash'].hex()}")
         print(f"From: {tx['from']} {get_wallet_label(tx['from'].lower())}")
@@ -85,19 +88,21 @@ def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc2
         print(f"Gas Limit: {gas}")
         print(f"Gas Used: {gas_used}")
         print(f"Actual Gas Cost: {actual_gas_cost:.6f} AVAX")
-        print(f"Total Cost: {value + actual_gas_cost:.6f} AVAX")
+        print(f"Total Cost: {total_cost:.6f} AVAX")
 
         # Check for transaction significance
         is_large_tx = value_usd >= Decimal(threshold_usd)
         involves_hot_wallet = tx['from'].lower() in HOT_WALLETS or tx['to'].lower() in HOT_WALLETS
         involves_whale = tx['from'].lower() in WHALE_WALLETS or tx['to'].lower() in WHALE_WALLETS
+        involves_router = tx['to'].lower() in known_routers
 
-        if is_large_tx or involves_hot_wallet or involves_whale:
+        if is_large_tx or involves_hot_wallet or involves_whale or involves_router:
             logging.info(f"Significant transaction detected:")
             logging.info(f"  Hash: {tx['hash'].hex()}")
             logging.info(f"  From: {tx['from']} {get_wallet_label(tx['from'].lower())}")
             logging.info(f"  To: {tx['to']} {get_wallet_label(tx['to'].lower())}")
             logging.info(f"  Value: {value:.4f} AVAX (${value_usd:.2f} USD)")
+            logging.info(f"  Total Cost: {total_cost:.6f} AVAX")
 
             if is_large_tx:
                 logging.info("  Type: Large Transaction")
@@ -105,6 +110,9 @@ def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_mappings, erc2
                 logging.info("  Type: Involves Hot Wallet")
             if involves_whale:
                 logging.info("  Type: Involves Whale Wallet")
+            if involves_router:
+                router_name = known_routers[tx['to'].lower()]
+                logging.info(f"  Dex: {router_name}")
 
         # Check if there's any input data (for contract interactions)
         if tx['input'] and tx['input'] != '0x':
