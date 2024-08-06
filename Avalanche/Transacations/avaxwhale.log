@@ -73,3 +73,14 @@
 2024-08-05 18:30:06 - INFO - Large transaction detected: Hash=0x3167262cc43e5c485018120ea10d8aa155c670138f5c62c7af33ced67eb1155e, Value=8499.99 AVAX, Value in USD=173399.89, From=0x6e45178FF302011a39c56c1814fEeD667aC4Ce0D, To=0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9, Type=cexhotwallet: Binance: Hot Wallet
 2024-08-05 18:43:15 - INFO - Found 1 large transactions
 2024-08-05 18:43:15 - INFO - Large transaction detected: Hash=0x7c1fd03e0c7d3e8217de595686817652cba4e4c2aef90714ae82c7d4dda469f2, Value=7245.00 AVAX, Value in USD=147798.00, From=0x5FB8758411E681070c263ca63267B7C7E541A695, To=0x18556DA13313f3532c54711497A8FedAC273220E, Type=traderjoe: LBRouter
+2024-08-05 19:01:27 - INFO - Found 1 large transactions
+2024-08-05 19:01:27 - INFO - Large transaction detected: Hash=0xc2afca0e0596adb97730b426f491811c1bc0fcfd1ed75932f87133a854d7eec3, Value=1385.73 AVAX, Value in USD=28268.87, From=0x3BCE63C6C9ABf7A47f52c9A3a7950867700B0158, To=0xa6347745EB31F716FC16fde759A4CbD5696CEA04, Type=unknown
+2024-08-05 19:09:32 - INFO - Found 2 large transactions
+2024-08-05 19:09:32 - INFO - Large transaction detected: Hash=0x220f34e49af2f2dd310666bf07abfb7701ee14852ea6133f0c49bc66d0c0c5bd, Value=2792.78 AVAX, Value in USD=56972.65, From=0x8af8485e1F178be06386CD3877Fde20626e0284F, To=0x6429FEBFB79092c7b04F9cF42b329E0c2643d033, Type=cexhotwallet: Coinbase: Hot Wallet (sender)
+2024-08-05 19:09:32 - INFO - Large transaction detected: Hash=0x0c43f313248031c20b5ae56fcda0974cab47a340d08350740ca90aa2bc0c1dc0, Value=7870.42 AVAX, Value in USD=160556.60, From=0xE1A0DDeb9b5b55E489977b438764e60e314E917c, To=0xfeB77E1Abd4CEF7B3fcAe8de63d24B80C3522eF0, Type=unknown
+2024-08-05 19:11:33 - INFO - Found 1 large transactions
+2024-08-05 19:11:33 - INFO - Large transaction detected: Hash=0xb1a50663b3e19c039a3bfc8c7a4734c4ca61888145293f477109cfbfadbfcedd, Value=1360.09 AVAX, Value in USD=27745.74, From=0xFF82B021bA0AaD35F52643aec284cC628E3Fd121, To=0x449cE4208c063350015b883Ff029722DEbc71EC7, Type=unknown
+2024-08-05 19:14:35 - INFO - Found 1 large transactions
+2024-08-05 19:14:35 - INFO - Large transaction detected: Hash=0x5adb81f4fafc14a107ef0e36246b97bdf0c2289a96942892b794bb0b3c391e92, Value=699.95 AVAX, Value in USD=14278.98, From=0x9Da5812111DCBD65fF9b736874a89751A4F0a2F8, To=0xa8575a27a83C770b16087BacDe09cfefC2C36f39, Type=cexhotwallet: Kraken: Hot Wallet (sender)
+2024-08-05 19:27:43 - INFO - Found 1 large transactions
+2024-08-05 19:27:43 - INFO - Large transaction detected: Hash=0xbb030cd1ec23bddf689821490e0da9ddec86d15d83e85addd351fac5e4ae9970, Value=500.00 AVAX, Value in USD=10200.04, From=0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9, To=0x20202b27FEf6d66f41233A95120333195396a03C, Type=cexhotwallet: Binance: Hot Wallet (sender)
