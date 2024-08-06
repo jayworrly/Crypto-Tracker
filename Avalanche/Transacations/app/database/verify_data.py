@@ -9,16 +9,21 @@ def verify_data():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
     
-    # Fetch all rows to see how many entries are present
-    cursor.execute("SELECT COUNT(*) FROM addresses")
-    total_count = cursor.fetchone()[0]
-    print(f"Total addresses in database: {total_count}")
-    
-    # Fetch a few rows to inspect
-    cursor.execute("SELECT * FROM addresses LIMIT 50")  # Adjust limit as needed
+    # Verify whales table
+    print("Verifying whales table:")
+    cursor.execute("SELECT * FROM whales")
     rows = cursor.fetchall()
-    
-    # Print the results
+    print(f"Total whale wallets in database: {len(rows)}")
+    print("\nID | Address                             | Label          | Threshold | Notes")
+    print("---|-------------------------------------|----------------|-----------|------")
+    for row in rows:
+        print(f"{row[0]:<3}| {row[1]:<37} | {row[2]:<14} | {row[3]:<9} | {row[4]}")
+
+    print("\nVerifying addresses table:")
+    # Verify addresses table for CEX hot wallets
+    cursor.execute("SELECT * FROM addresses WHERE category = 'cexhotwallet'")
+    rows = cursor.fetchall()
+    print(f"Total CEX hot wallets in database: {len(rows)}")
     print("\nID | Address                             | Label                       | Category")
     print("---|-------------------------------------|-----------------------------|---------")
     for row in rows:
@@ -28,3 +33,4 @@ def verify_data():
 
 if __name__ == "__main__":
     verify_data()
+

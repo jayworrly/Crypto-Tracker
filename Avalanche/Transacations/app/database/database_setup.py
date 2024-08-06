@@ -2,14 +2,19 @@
 
 import sqlite3
 import logging
+import os
 
 def setup_database():
     try:
+        # Ensure the database directory exists
+        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'avalanche_addresses.db'))
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
         # Connect to the SQLite database (or create it if it doesn't exist)
-        conn = sqlite3.connect('app/database/avalanche_addresses.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Create a table for storing addresses
+        # Create a table for storing addresses (if not exists)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS addresses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,28 +24,29 @@ def setup_database():
         )
         ''')
 
-        # Create a table for storing transactions
+        # Create a table for storing transactions (if not exists)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tx_hash TEXT NOT NULL UNIQUE,
             from_address TEXT,
             to_address TEXT,
-            value REAL,
+            value_avax REAL,
+            value_usd REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(from_address) REFERENCES addresses(address),
-            FOREIGN KEY(to_address) REFERENCES addresses(address)
+            type TEXT
         )
         ''')
         
         conn.commit()
         conn.close()
         
-        logging.info("Database setup completed successfully.")
-        print("Database setup completed successfully.")
+        logging.info(f"Database setup completed successfully. Path: {db_path}")
+        print(f"Database setup completed successfully. Path: {db_path}")
     except Exception as e:
         logging.error(f"An error occurred during database setup: {e}")
         print(f"An error occurred during database setup: {e}")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     setup_database()
