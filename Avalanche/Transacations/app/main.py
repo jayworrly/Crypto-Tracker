@@ -42,6 +42,22 @@ def load_token_mappings(filepath):
     logging.debug(f"Loaded token mappings: {token_mappings}")
     return token_mappings
 
+def load_known_routers(filepath):
+    """Load known router addresses from a file."""
+    known_routers = set()
+    try:
+        with open(filepath, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line and not line.startswith('#'):  # Ignore empty lines and comments
+                    known_routers.add(line.lower())  # Store as lowercase for consistency
+        logging.info(f"Loaded {len(known_routers)} known router addresses from {filepath}")
+    except FileNotFoundError as e:
+        logging.error(f"Router file not found: {e}")
+    except Exception as e:
+        logging.error(f"Error reading router file: {e}")
+    return known_routers
+
 def fetch_dexscreener_data(pair_id, max_retries=3):
     url = f"https://api.dexscreener.com/latest/dex/pairs/avalanche/{pair_id}"
     for attempt in range(max_retries):
@@ -73,13 +89,15 @@ def track_transactions(args):
 
     try:
         connector = BlockchainConnector(args.config)
-        large_transaction_threshold = Decimal('100')  # AVAX threshold in USD
-        token_transaction_threshold = Decimal('10')   # Threshold for token transactions in USD
+        large_transaction_threshold = Decimal('5000')  # AVAX threshold in USD
+        token_transaction_threshold = Decimal('1000')   # Threshold for token transactions in USD
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         avalanche_eco_dir = os.path.join(current_dir, 'avalanche_eco')
         token_mapping_file = os.path.join(avalanche_eco_dir, 'token_mapping.txt')
+        routers_file = os.path.join(avalanche_eco_dir, 'routers.txt')
         token_mappings = load_token_mappings(token_mapping_file)
+        known_routers = load_known_routers(routers_file)
 
         erc20_abi_file = os.path.join(avalanche_eco_dir, 'erc20_abi.json')
         with open(erc20_abi_file, 'r') as abi_file:
@@ -104,10 +122,29 @@ def track_transactions(args):
                             logging.info(f"Large transaction detected: Hash={tx['hash'].hex()}, "
                                          f"Value={tx_value_avax:.2f} AVAX, Value in USD={tx_value_usd:.2f}, "
                                          f"From={tx['from']}, To={tx['to']}")
-                            # Pass avax_to_usd to the analyze_transaction function
-                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd)
-                        
-                        # Check for token transactions
+                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, erc20_abi)
+
+                        # Check if the transaction is to a known router
+                        if tx['to'] and tx['to'].lower() in known_routers:
+                            logging.info(f"Transaction involves a known DEX router")
+                            try:
+                                # Decode swap transactions
+                                if tx['input'].startswith(b'\x38\xed\x17\x39'):  # swapExactTokensForTokens
+                                    contract = connector.w3.eth.contract(address=tx['to'], abi=erc20_abi)
+                                    decoded_input = contract.decode_function_input(tx['input'])
+                                    path = decoded_input[1]['path']
+                                    amounts_in = Web3.from_wei(decoded_input[1]['amountIn'], 'ether')
+                                    amounts_out_min = Web3.from_wei(decoded_input[1]['amountOutMin'], 'ether')
+
+                                    # Log each token in the path
+                                    token_names = [token_mappings.get(token.lower(), {}).get('name', 'Unknown') for token in path]
+                                    logging.info(f"Swap path: {' -> '.join(token_names)}")
+                                    logging.info(f"Swap amount in: {amounts_in} tokens")
+                                    logging.info(f"Swap minimum amount out: {amounts_out_min} tokens")
+                            except Exception as e:
+                                logging.error(f"Error decoding swap transaction {tx['hash'].hex()}: {str(e)}")
+
+                        # Additional handling for token transfers
                         if tx['to'] and tx['to'].lower() in token_mappings:
                             token_address = Web3.to_checksum_address(tx['to'].lower())
                             token_info = token_mappings[tx['to'].lower()]
@@ -127,13 +164,9 @@ def track_transactions(args):
                                                          f"Token={token_info['name']}, Amount={token_amount:.2f}, "
                                                          f"Value in USD={tx_value_usd:.2f}, From={tx['from']}, "
                                                          f"To={decoded_input[1].get('_to') or decoded_input[1].get('to')}")
+                                            logging.info(f"Tokens traded: {token_info['name']} - Amount: {token_amount} - Value in USD: {tx_value_usd:.2f}")
                             except Exception as e:
                                 logging.error(f"Error decoding token transaction {tx['hash'].hex()}: {str(e)}")
-
-                        # Check for swap transactions
-                        if tx['input'].startswith(b'\x38\xed\x17\x39'):  # This is the function selector for 'swapExactTokensForTokens'
-                            logging.info(f"Potential swap transaction detected: Hash={tx['hash'].hex()}, "
-                                         f"From={tx['from']}, To={tx['to']}, Value={tx_value_avax:.6f} AVAX")
 
                     except Exception as tx_error:
                         logging.error(f"Error processing transaction {tx['hash'].hex()}: {str(tx_error)}")
