@@ -1,110 +1,50 @@
-# main.py
-
 import argparse
 import logging
 import time
+import os
 from web3 import Web3
-import requests
 from blockchain.connector import BlockchainConnector
 from blockchain.transactions import analyze_transaction
-import os
-import json
+from utils.token_loader import EnhancedTokenLoader
+from utils.routers import RouterLoader
+from utils.wallets import WalletLoader
 from datetime import datetime
 from decimal import Decimal
-from web3.middleware import geth_poa_middleware
+import json
+
+def load_abi(erc_abis_dir, file_name):
+    file_path = os.path.join(erc_abis_dir, file_name)
+    try:
+        with open(file_path, 'r') as file:
+            abi = json.load(file)
+        logging.info(f"Loaded ABI file: {file_name}")
+        return abi
+    except FileNotFoundError:
+        logging.error(f"ABI file not found: {file_name}")
+        return None
+    except json.JSONDecodeError as e:
+        logging.error(f"Error decoding ABI file {file_name}: {e}")
+        return None
+
+def verify_directories(directories):
+    """Ensure all necessary directories exist."""
+    for directory in directories:
+        if not os.path.exists(directory):
+            logging.error(f"Directory does not exist: {directory}")
+            return False
+    return True
+
+def verify_files(directory, filenames):
+    """Ensure all necessary files exist."""
+    for filename in filenames:
+        file_path = os.path.join(directory, filename)
+        if not os.path.exists(file_path):
+            logging.error(f"File not found: {file_path}")
+            return False
+    return True
 
 def setup_logging(log_level):
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="AvaxWhale Transaction Tracker")
-    config_path = os.path.abspath('config/config.yaml')
-    parser.add_argument("--config", default=config_path, help="Path to configuration file")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level")
-    parser.add_argument("--interval", type=int, default=60, help="Interval in seconds between checks")
-    return parser.parse_args()
-
-def load_token_mappings(filepath):
-    """Load token mappings from a file."""
-    token_mappings = {}
-    try:
-        with open(filepath, 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line:
-                    try:
-                        address, token_name, pair_id = line.split(',', 2)
-                        token_mappings[address.strip().lower()] = {
-                            'name': token_name.strip(),
-                            'pair_id': pair_id.strip(),
-                            'contract_address': address.strip().lower()
-                        }
-                    except ValueError as e:
-                        logging.error(f"Error parsing line '{line}' in token_mapping.txt: {e}")
-    except FileNotFoundError as e:
-        logging.error(f"Token mapping file not found: {e}")
-    logging.debug(f"Loaded token mappings: {token_mappings}")
-    return token_mappings
-
-def load_known_routers(filepath):
-    """Load known router addresses from a file."""
-    known_routers = {}
-    try:
-        with open(filepath, 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line and not line.startswith('#'):  # Ignore empty lines and comments
-                    address, name = line.split(',', 1)  # Expecting "address,name" format
-                    known_routers[address.lower()] = name.strip()  # Store as lowercase for consistency
-        logging.info(f"Loaded {len(known_routers)} known router addresses from {filepath}")
-    except FileNotFoundError as e:
-        logging.error(f"Router file not found: {e}")
-    except Exception as e:
-        logging.error(f"Error reading router file: {e}")
-    return known_routers
-
-def load_tokens(filepath):
-    """Load token contracts from coins.txt."""
-    tokens = {}
-    try:
-        with open(filepath, 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line:
-                    tokens[line.lower()] = {'name': line}  # Use address as name if no names are provided
-        logging.info(f"Loaded {len(tokens)} tokens from {filepath}")
-    except FileNotFoundError as e:
-        logging.error(f"Token file not found: {e}")
-    except Exception as e:
-        logging.error(f"Error reading token file: {e}")
-    return tokens
-
-def fetch_dexscreener_data(pair_id, max_retries=3):
-    """Fetch price data from Dexscreener for a given pair ID."""
-    url = f"https://api.dexscreener.com/latest/dex/pairs/avalanche/{pair_id}"
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            if 'pair' in data and 'priceUsd' in data['pair']:
-                return float(data['pair']['priceUsd'])
-            else:
-                logging.warning(f"Invalid response structure for pair {pair_id}: {data}")
-                return None
-        except requests.RequestException as e:
-            logging.warning(f"Request failed for pair {pair_id} (Attempt {attempt + 1}/{max_retries}): {str(e)}")
-        if attempt < max_retries - 1:
-            time.sleep(2 ** attempt)
-    logging.error(f"Failed to fetch data for pair {pair_id} after {max_retries} attempts")
-    return None
-
-def fetch_token_price(token_info):
-    """Fetch the price of a token using its pair ID."""
-    if token_info.get('pair_id'):
-        return fetch_dexscreener_data(token_info['pair_id'])
-    logging.warning(f"No pair ID available for token {token_info.get('name')}")
-    return None
 
 def track_transactions(args):
     setup_logging(args.log_level)
@@ -112,95 +52,72 @@ def track_transactions(args):
 
     try:
         connector = BlockchainConnector(args.config)
-        large_transaction_threshold = Decimal('1000')  # AVAX threshold in USD
-        token_transaction_threshold = Decimal('500')   # Threshold for token transactions in USD
+        large_transaction_threshold = Decimal('1000')  # Threshold for AVAX and token transactions in USD
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        avalanche_eco_dir = os.path.join(current_dir, 'avalanche_eco')
-        token_mapping_file = os.path.join(avalanche_eco_dir, 'token_mapping.txt')
-        routers_file = os.path.join(avalanche_eco_dir, 'routers.txt')
-        coins_file = os.path.join(avalanche_eco_dir, 'coins.txt')
+        utils_dir = os.path.join(current_dir, 'utils')
+        router_abis_dir = os.path.join(current_dir, 'router_abis')
+        erc_abis_dir = os.path.join(current_dir, 'erc')
 
-        token_mappings = load_token_mappings(token_mapping_file)
-        known_routers = load_known_routers(routers_file)
-        known_tokens = load_tokens(coins_file)
+        # Verify directories
+        if not verify_directories([utils_dir, router_abis_dir, erc_abis_dir]):
+            logging.error("Required directories are missing. Exiting.")
+            return
 
-        # Example of using loaded ABIs
-        example_abi = connector.abis.get('1inch_v4.json')  # Example ABI
+        # Verify required files
+        utils_files = ['cexhotwallet.txt', 'whales.txt', 'coins.txt', 'token_mapping.txt']
+        expected_abi_files = [
+            'uniswapv3router.json',
+            'traderjoerouter.json',
+            'traderjoelbrouterv21.json',
+            '1inchnetworkrouter.json',
+            '1inchnetworkaggregationrouterv5.json',
+            'gmxpositionrouter.json',
+            'lbrouter.json',
+            'odosrouterv2.json'
+        ]
+
+        if not verify_files(utils_dir, utils_files):
+            logging.error("Required utility files are missing. Exiting.")
+            return
+
+        if not verify_files(router_abis_dir, ['routers.txt'] + expected_abi_files):
+            logging.error("Required router ABI files are missing. Exiting.")
+            return
+
+        # Initialize Web3
+        w3 = Web3(Web3.HTTPProvider('https://api.avax.network/ext/bc/C/rpc'))
+
+        # Load ABIs
+        erc20_abi = load_abi(erc_abis_dir, 'erc20_abi.json')
+        erc721_abi = load_abi(erc_abis_dir, 'erc721_abi.json')
+        erc1155_abi = load_abi(erc_abis_dir, 'erc1155_abi.json')
+
+        # Load tokens, routers, and wallets
+        token_loader = EnhancedTokenLoader(utils_dir, w3, erc20_abi, erc721_abi, erc1155_abi)
+        router_loader = RouterLoader(router_abis_dir)
+        wallet_loader = WalletLoader(utils_dir)
 
         while True:
             try:
                 transactions = connector.get_recent_transactions(block_count=10)
                 logging.info(f"Fetched {len(transactions)} transactions")
-                logging.debug(f"Fetched transactions: {[tx['hash'].hex() for tx in transactions]}")
 
                 for tx in transactions:
                     logging.debug(f"Processing transaction: {tx['hash'].hex()}")
                     tx_timestamp = connector.w3.eth.get_block(tx['blockNumber'])['timestamp']
                     logging.debug(f"Transaction {tx['hash'].hex()} timestamp: {datetime.fromtimestamp(tx_timestamp)}")
 
-                    try:
-                        tx_value_avax = Decimal(Web3.from_wei(tx['value'], 'ether'))
-                        tx_value_usd = tx_value_avax * Decimal(str(connector.avax_to_usd))
-
-                        if tx_value_usd >= large_transaction_threshold:
-                            logging.info(f"Large transaction detected: Hash={tx['hash'].hex()}, "
-                                         f"Value={tx_value_avax:.2f} AVAX, Value in USD={tx_value_usd:.2f}, "
-                                         f"From={tx['from']}, To={tx['to']}")
-                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, example_abi, known_routers)
-
-                        # Check if the transaction is to a known router
-                        if tx['to'] and tx['to'].lower() in known_routers:
-                            router_name = known_routers[tx['to'].lower()]
-                            logging.info(f"Dex: {router_name}")
-                            try:
-                                # Decode swap transactions
-                                if tx['input'].startswith(b'\x38\xed\x17\x39'):  # swapExactTokensForTokens
-                                    contract = connector.w3.eth.contract(address=tx['to'], abi=example_abi)
-                                    decoded_input = contract.decode_function_input(tx['input'])
-                                    path = decoded_input[1]['path']
-                                    amounts_in = Web3.from_wei(decoded_input[1]['amountIn'], 'ether')
-                                    amounts_out_min = Web3.from_wei(decoded_input[1]['amountOutMin'], 'ether')
-
-                                    # Log each token in the path
-                                    token_names = [token_mappings.get(token.lower(), {}).get('name', 'Unknown') for token in path]
-                                    logging.info(f"Swap path: {' -> '.join(token_names)}")
-                                    logging.info(f"Swap amount in: {amounts_in} tokens")
-                                    logging.info(f"Swap minimum amount out: {amounts_out_min} tokens")
-
-                                    # Track token movements to LBrouters
-                                    for idx, token in enumerate(path):
-                                        if idx < len(path) - 1:
-                                            logging.debug(f"Token moved from {path[idx]} to {path[idx + 1]}")
-                            except Exception as e:
-                                logging.error(f"Error decoding swap transaction {tx['hash'].hex()}: {str(e)}")
-
-                        # Additional handling for token transfers
-                        if tx['to'] and tx['to'].lower() in known_tokens:
-                            token_address = Web3.to_checksum_address(tx['to'].lower())
-                            token_info = known_tokens[tx['to'].lower()]
-                            try:
-                                contract = connector.w3.eth.contract(address=token_address, abi=example_abi)
-                                decoded_input = contract.decode_function_input(tx['input'])
-                                if decoded_input[0].fn_name in ['transfer', 'transferFrom']:
-                                    token_amount = Decimal(Web3.from_wei(decoded_input[1].get('_value') or decoded_input[1].get('amount'), 'ether'))
-                                    token_price_usd = fetch_token_price(token_info)
-                                    if token_price_usd:
-                                        tx_value_usd = token_amount * Decimal(str(token_price_usd))
-                                        logging.debug(f"Token transaction detected: Hash={tx['hash'].hex()}, "
-                                                      f"Token={token_info['name']}, Amount={token_amount:.2f}, "
-                                                      f"Value in USD={tx_value_usd:.2f}")
-                                        if tx_value_usd >= token_transaction_threshold:
-                                            logging.info(f"Large token transaction detected: Hash={tx['hash'].hex()}, "
-                                                         f"Token={token_info['name']}, Amount={token_amount:.2f}, "
-                                                         f"Value in USD={tx_value_usd:.2f}, From={tx['from']}, "
-                                                         f"To={decoded_input[1].get('_to') or decoded_input[1].get('to')}")
-                                            logging.info(f"Tokens traded: {token_info['name']} - Amount: {token_amount} - Value in USD: {tx_value_usd:.2f}")
-                            except Exception as e:
-                                logging.error(f"Error decoding token transaction {tx['hash'].hex()}: {str(e)}")
-
-                    except Exception as tx_error:
-                        logging.error(f"Error processing transaction {tx['hash'].hex()}: {str(tx_error)}")
+                    analyze_transaction(
+                        tx=tx,
+                        w3=connector.w3,
+                        threshold_usd=large_transaction_threshold,
+                        avax_to_usd=connector.avax_to_usd,
+                        token_loader=token_loader,
+                        router_loader=router_loader,
+                        wallet_loader=wallet_loader,
+                        known_routers=router_loader.get_all_routers()
+                    )
 
                 time.sleep(args.interval)
 
@@ -214,6 +131,10 @@ def track_transactions(args):
     logging.info("Avalanche Transaction Tracker finished")
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    track_transactions(args)
+    parser = argparse.ArgumentParser(description="Avalanche Transaction Tracker")
+    parser.add_argument("--config", required=True, help="Path to the configuration file")
+    parser.add_argument("--log-level", default="INFO", help="Logging level")
+    parser.add_argument("--interval", type=int, default=60, help="Interval between checks in seconds")
+    args = parser.parse_args()
 
+    track_transactions(args)

@@ -78,4 +78,3 @@ def calculate_transaction_value(tx, avax_to_usd):
     return value_avax, value_usd
 
 # Add more helper functions as needed...
-
