@@ -1,3 +1,5 @@
+# main.py
+
 import argparse
 import logging
 import time
@@ -9,6 +11,7 @@ import os
 import json
 from datetime import datetime
 from decimal import Decimal
+from web3.middleware import geth_poa_middleware
 
 def setup_logging(log_level):
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,6 +25,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def load_token_mappings(filepath):
+    """Load token mappings from a file."""
     token_mappings = {}
     try:
         with open(filepath, 'r') as file:
@@ -59,7 +63,24 @@ def load_known_routers(filepath):
         logging.error(f"Error reading router file: {e}")
     return known_routers
 
+def load_tokens(filepath):
+    """Load token contracts from coins.txt."""
+    tokens = {}
+    try:
+        with open(filepath, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line:
+                    tokens[line.lower()] = {'name': line}  # Use address as name if no names are provided
+        logging.info(f"Loaded {len(tokens)} tokens from {filepath}")
+    except FileNotFoundError as e:
+        logging.error(f"Token file not found: {e}")
+    except Exception as e:
+        logging.error(f"Error reading token file: {e}")
+    return tokens
+
 def fetch_dexscreener_data(pair_id, max_retries=3):
+    """Fetch price data from Dexscreener for a given pair ID."""
     url = f"https://api.dexscreener.com/latest/dex/pairs/avalanche/{pair_id}"
     for attempt in range(max_retries):
         try:
@@ -79,9 +100,10 @@ def fetch_dexscreener_data(pair_id, max_retries=3):
     return None
 
 def fetch_token_price(token_info):
-    if token_info['pair_id']:
+    """Fetch the price of a token using its pair ID."""
+    if token_info.get('pair_id'):
         return fetch_dexscreener_data(token_info['pair_id'])
-    logging.warning(f"No pair ID available for token {token_info['name']}")
+    logging.warning(f"No pair ID available for token {token_info.get('name')}")
     return None
 
 def track_transactions(args):
@@ -96,13 +118,15 @@ def track_transactions(args):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         avalanche_eco_dir = os.path.join(current_dir, 'avalanche_eco')
         token_mapping_file = os.path.join(avalanche_eco_dir, 'token_mapping.txt')
-        routers_file = os.path.join(avalanche_eco_dir, 'router.txt')  # Ensure correct filename
+        routers_file = os.path.join(avalanche_eco_dir, 'routers.txt')
+        coins_file = os.path.join(avalanche_eco_dir, 'coins.txt')
+
         token_mappings = load_token_mappings(token_mapping_file)
         known_routers = load_known_routers(routers_file)
+        known_tokens = load_tokens(coins_file)
 
-        erc20_abi_file = os.path.join(avalanche_eco_dir, 'erc20_abi.json')
-        with open(erc20_abi_file, 'r') as abi_file:
-            erc20_abi = json.load(abi_file)
+        # Example of using loaded ABIs
+        example_abi = connector.abis.get('1inch_v4.json')  # Example ABI
 
         while True:
             try:
@@ -123,7 +147,7 @@ def track_transactions(args):
                             logging.info(f"Large transaction detected: Hash={tx['hash'].hex()}, "
                                          f"Value={tx_value_avax:.2f} AVAX, Value in USD={tx_value_usd:.2f}, "
                                          f"From={tx['from']}, To={tx['to']}")
-                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, erc20_abi, known_routers)
+                            analyze_transaction(tx, connector.w3, large_transaction_threshold, connector.avax_to_usd, token_mappings, example_abi, known_routers)
 
                         # Check if the transaction is to a known router
                         if tx['to'] and tx['to'].lower() in known_routers:
@@ -132,7 +156,7 @@ def track_transactions(args):
                             try:
                                 # Decode swap transactions
                                 if tx['input'].startswith(b'\x38\xed\x17\x39'):  # swapExactTokensForTokens
-                                    contract = connector.w3.eth.contract(address=tx['to'], abi=erc20_abi)
+                                    contract = connector.w3.eth.contract(address=tx['to'], abi=example_abi)
                                     decoded_input = contract.decode_function_input(tx['input'])
                                     path = decoded_input[1]['path']
                                     amounts_in = Web3.from_wei(decoded_input[1]['amountIn'], 'ether')
@@ -143,15 +167,20 @@ def track_transactions(args):
                                     logging.info(f"Swap path: {' -> '.join(token_names)}")
                                     logging.info(f"Swap amount in: {amounts_in} tokens")
                                     logging.info(f"Swap minimum amount out: {amounts_out_min} tokens")
+
+                                    # Track token movements to LBrouters
+                                    for idx, token in enumerate(path):
+                                        if idx < len(path) - 1:
+                                            logging.debug(f"Token moved from {path[idx]} to {path[idx + 1]}")
                             except Exception as e:
                                 logging.error(f"Error decoding swap transaction {tx['hash'].hex()}: {str(e)}")
 
                         # Additional handling for token transfers
-                        if tx['to'] and tx['to'].lower() in token_mappings:
+                        if tx['to'] and tx['to'].lower() in known_tokens:
                             token_address = Web3.to_checksum_address(tx['to'].lower())
-                            token_info = token_mappings[tx['to'].lower()]
+                            token_info = known_tokens[tx['to'].lower()]
                             try:
-                                contract = connector.w3.eth.contract(address=token_address, abi=erc20_abi)
+                                contract = connector.w3.eth.contract(address=token_address, abi=example_abi)
                                 decoded_input = contract.decode_function_input(tx['input'])
                                 if decoded_input[0].fn_name in ['transfer', 'transferFrom']:
                                     token_amount = Decimal(Web3.from_wei(decoded_input[1].get('_value') or decoded_input[1].get('amount'), 'ether'))
@@ -187,3 +216,4 @@ def track_transactions(args):
 if __name__ == "__main__":
     args = parse_arguments()
     track_transactions(args)
+

@@ -1,15 +1,17 @@
 import logging
 from collections import defaultdict
 from typing import List, Dict, Any
+from web3 import Web3
 from utils.token_loader import load_token_addresses
 
 # Constants
 HIGH_VALUE_THRESHOLD_USD = 10000
 TIME_PERIOD_UNITS = {'h': 1/24, 'd': 1, 'w': 7}
 
-class TransactionAnalyzer:
-    def __init__(self, blockchain_connector):
+class AvalancheTransactionAnalyzer:
+    def __init__(self, blockchain_connector, token_loader):
         self.blockchain_connector = blockchain_connector
+        self.token_loader = token_loader
         self.logger = logging.getLogger(__name__)
 
     def analyze_transactions(self, transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -33,18 +35,29 @@ class TransactionAnalyzer:
         # Load token labels
         token_labels = load_token_addresses()
 
+        return self.analyze_avalanche_transactions(transactions, token_labels)
+
+    def analyze_avalanche_transactions(self, transactions, token_labels):
         analysis_results = {
             "total_transactions": len(transactions),
-            "total_value": sum(tx.get('value', 0) for tx in transactions),
+            "total_avax_value": sum(Web3.from_wei(tx.get('value', 0), 'ether') for tx in transactions),
             "unique_addresses": set(),
             "transaction_types": defaultdict(int),
+            "dex_interactions": defaultdict(int),
+            "token_transfers": defaultdict(lambda: defaultdict(int)),
+            "gas_usage": {
+                "total": 0,
+                "average": 0,
+                "max": 0
+            },
             "high_value_transactions": [],
             "labeled_transactions": defaultdict(list)
         }
 
         for tx in transactions:
-            # Count unique addresses
-            analysis_results["unique_addresses"].update({tx.get('from', ''), tx.get('to', '')})
+            from_address = tx.get('from', '')
+            to_address = tx.get('to', '')
+            analysis_results["unique_addresses"].update([from_address, to_address])
             
             # Categorize transaction types
             tx_type = self._categorize_transaction(tx)
@@ -52,18 +65,37 @@ class TransactionAnalyzer:
             
             # Identify high-value transactions
             if 'exchange_rate' in tx:
-                usd_value = tx['value'] * tx['exchange_rate']
+                usd_value = float(Web3.from_wei(tx.get('value', 0), 'ether')) * tx['exchange_rate']
                 if usd_value >= HIGH_VALUE_THRESHOLD_USD:
                     analysis_results["high_value_transactions"].append(tx)
             
+            if tx_type == "contract_interaction":
+                dex_name = self.identify_dex(to_address)
+                if dex_name:
+                    analysis_results["dex_interactions"][dex_name] += 1
+            
+            token_info = self.token_loader.get_token_info(to_address)
+            if token_info:
+                token_symbol = token_info['details'].get('symbol', 'Unknown')
+                analysis_results["token_transfers"][token_symbol]["count"] += 1
+                # You might want to decode the input to get the transfer amount
+            
             # Label transactions with known tokens
-            contract_address = tx.get('contract')
+            contract_address = tx.get('to', '')  # Changed from 'contract' to 'to'
             if contract_address in token_labels:
                 token_label = token_labels[contract_address]
                 analysis_results["labeled_transactions"][token_label].append(tx)
 
-        analysis_results["unique_addresses"] = len(analysis_results["unique_addresses"])
+            # Gas usage analysis
+            gas_used = tx.get('gas', 0)
+            analysis_results["gas_usage"]["total"] += gas_used
+            analysis_results["gas_usage"]["max"] = max(analysis_results["gas_usage"]["max"], gas_used)
 
+        # Calculate average gas usage
+        if analysis_results["total_transactions"] > 0:
+            analysis_results["gas_usage"]["average"] = analysis_results["gas_usage"]["total"] / analysis_results["total_transactions"]
+
+        analysis_results["unique_addresses"] = len(analysis_results["unique_addresses"])
         self.logger.info("Transaction analysis completed")
         return analysis_results
 
@@ -138,3 +170,12 @@ class TransactionAnalyzer:
             return value * TIME_PERIOD_UNITS[unit]
         except (ValueError, IndexError):
             raise ValueError(f"Invalid time period format: {time_period}")
+
+    def identify_dex(self, address):
+        # This would be a mapping of known DEX addresses to their names
+        dex_addresses = {
+            "0x60aE616a2155Ee3d9A68541Ba4544862310933d4": "Trader Joe",
+            "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106": "Pangolin",
+            # Add more DEX addresses here
+        }
+        return dex_addresses.get(address, None)
