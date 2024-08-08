@@ -2,6 +2,7 @@ import argparse
 import logging
 import time
 import os
+import json
 from web3 import Web3
 from blockchain.connector import BlockchainConnector
 from blockchain.transactions import analyze_transaction
@@ -10,7 +11,6 @@ from utils.routers import RouterLoader
 from utils.wallets import WalletLoader
 from datetime import datetime
 from decimal import Decimal
-import json
 
 def load_abi(erc_abis_dir, file_name):
     file_path = os.path.join(erc_abis_dir, file_name)
