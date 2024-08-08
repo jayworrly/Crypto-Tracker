@@ -28,15 +28,16 @@ class EnhancedTokenLoader:
                         line = line.strip()
                         if line and not line.startswith('#'):
                             parts = line.split(',')
-                            address = parts[0].lower()
+                            address = Web3.to_checksum_address(parts[0])
                             label = parts[1].strip()
                             pair_id = parts[2].strip() if len(parts) > 2 else None
-                            self.tokens[address] = {
+                            self.tokens[address.lower()] = {
                                 'label': label,
                                 'type': 'coin' if token_file == 'coins.txt' else 'token',
                                 'details': self.fetch_token_details(address),
                                 'pair_id': pair_id
                             }
+                            logging.info(f"Loaded token: {label} ({address})")
             except Exception as e:
                 logging.error(f"Error loading tokens from {token_file}: {str(e)}")
 
@@ -48,21 +49,24 @@ class EnhancedTokenLoader:
         # Select the correct ABI
         contract_abi = self.erc20_abi if self.erc20_abi else []
 
-        contract = self.w3.eth.contract(address=address, abi=contract_abi)
+        try:
+            contract = self.w3.eth.contract(address=address, abi=contract_abi)
 
-        for func in ['name', 'symbol', 'decimals']:
-            try:
-                details[func] = getattr(contract.functions, func)().call()
-            except Exception as e:
-                logging.error(f"Error fetching {func} for token {address}: {str(e)}")
+            for func in ['name', 'symbol', 'decimals']:
+                try:
+                    details[func] = getattr(contract.functions, func)().call()
+                except Exception as e:
+                    logging.error(f"Error fetching {func} for token {address}: {str(e)}")
+        except Exception as e:
+            logging.error(f"Error creating contract instance for token {address}: {str(e)}")
 
         return details
 
     def get_token_info(self, address):
-        return self.tokens.get(address.lower())
+        return self.tokens.get(Web3.to_checksum_address(address).lower())
 
     def update_token_price(self, address, price):
-        address = address.lower()
+        address = Web3.to_checksum_address(address).lower()
         if address in self.tokens:
             self.tokens[address]['price'] = price
             logging.info(f"Updated price for {self.tokens[address]['label']} ({address}): {price}")

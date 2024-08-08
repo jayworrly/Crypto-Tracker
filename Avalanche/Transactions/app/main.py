@@ -1,7 +1,12 @@
+import sys
+import os
+
+# Add the current directory to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import argparse
 import logging
 import time
-import os
 import json
 from web3 import Web3
 from blockchain.connector import BlockchainConnector
