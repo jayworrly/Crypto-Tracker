@@ -12,11 +12,12 @@ def analyze_wallet_transfer(tx, w3, avax_to_usd, wallet_loader, token_loader):
     
     if from_label or to_label:  # Only log if either the sender or receiver is a known wallet
         logging.info("\n====================================")
-        logging.info("Wallet Transfer Detected:")
-        logging.info(f"  Hash: {tx['hash'].hex()}")
-        logging.info(f"  From: {tx['from']} {from_label}")
-        logging.info(f"  To: {tx['to']} {to_label}")
-        logging.info(f"  Value: {value:.4f} AVAX (${value_usd:.2f} USD)")
+        logging.info("💼 Wallet Transfer Detected")
+        logging.info("====================================")
+        logging.info(f"🔗 Hash: {tx['hash'].hex()}")
+        logging.info(f"📤 From: {tx['from']} {from_label}")
+        logging.info(f"📥 To: {tx['to']} {to_label}")
+        logging.info(f"💰 Value: {value:.4f} AVAX (${value_usd:.2f} USD)")
         logging.info("====================================\n")
 
 def get_wallet_label(address, wallet_loader, token_loader):

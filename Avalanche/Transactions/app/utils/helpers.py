@@ -77,4 +77,17 @@ def calculate_transaction_value(tx, avax_to_usd):
     value_usd = value_avax * Decimal(avax_to_usd)
     return value_avax, value_usd
 
-# Add more helper functions as needed...
+def is_contract_address(w3, address):
+    code = w3.eth.get_code(address)
+    return code != b''
+
+def get_token_info_with_check(address, w3, token_loader):
+    if is_contract_address(w3, address):
+        token_info = token_loader.get_token_info(address)
+        if not token_info:
+            logging.warning(f"Token information not found for address: {address}")
+        return token_info
+    else:
+        logging.info(f"Address {address} is a regular wallet, not a token contract.")
+        return None
+
