@@ -3,6 +3,8 @@ import logging
 from web3 import Web3
 import json
 import requests
+import asyncio
+from functools import lru_cache
 
 class EnhancedTokenLoader:
     def __init__(self, token_directory, w3, erc20_abi=None, erc721_abi=None, erc1155_abi=None):
@@ -34,7 +36,6 @@ class EnhancedTokenLoader:
                             self.tokens[address.lower()] = {
                                 'label': label,
                                 'type': 'coin' if token_file == 'coins.txt' else 'token',
-                                'details': self.fetch_token_details(address),
                                 'pair_id': pair_id
                             }
                             logging.info(f"Loaded token: {label} ({address})")
@@ -43,27 +44,46 @@ class EnhancedTokenLoader:
 
         logging.info(f"Loaded {len(self.tokens)} tokens")
 
+    @lru_cache(maxsize=1000)
     def fetch_token_details(self, address):
         details = {}
         
-        # Select the correct ABI
-        contract_abi = self.erc20_abi if self.erc20_abi else []
+        for abi in [self.erc20_abi, self.erc721_abi, self.erc1155_abi]:
+            if not abi:
+                continue
+            try:
+                contract = self.w3.eth.contract(address=address, abi=abi)
+                for func in ['name', 'symbol', 'decimals']:
+                    try:
+                        details[func] = getattr(contract.functions, func)().call()
+                    except Exception:
+                        pass
+                if details:
+                    details['type'] = 'ERC20' if abi == self.erc20_abi else 'ERC721' if abi == self.erc721_abi else 'ERC1155'
+                    return details
+            except Exception:
+                pass
 
-        try:
-            contract = self.w3.eth.contract(address=address, abi=contract_abi)
-
-            for func in ['name', 'symbol', 'decimals']:
-                try:
-                    details[func] = getattr(contract.functions, func)().call()
-                except Exception as e:
-                    logging.error(f"Error fetching {func} for token {address}: {str(e)}")
-        except Exception as e:
-            logging.error(f"Error creating contract instance for token {address}: {str(e)}")
-
+        logging.warning(f"Unable to determine token type for {address}")
         return details
 
     def get_token_info(self, address):
-        return self.tokens.get(Web3.to_checksum_address(address).lower())
+        address = Web3.to_checksum_address(address).lower()
+        if address not in self.tokens:
+            details = self.fetch_token_details(address)
+            if details:
+                self.tokens[address] = {
+                    'label': details.get('symbol', 'Unknown'),
+                    'type': details.get('type', 'Unknown'),
+                    'details': details
+                }
+            else:
+                self.tokens[address] = {
+                    'label': 'Unknown',
+                    'type': 'Unknown',
+                    'details': {}
+                }
+        return self.tokens[address]
 
     def update_token_price(self, address, price):
         address = Web3.to_checksum_address(address).lower()
@@ -102,3 +122,12 @@ class EnhancedTokenLoader:
 
     def get_all_tokens(self):
         return self.tokens
+
+    async def load_token_details_async(self):
+        tasks = [self.fetch_token_details_async(address) for address in self.tokens.keys()]
+        await asyncio.gather(*tasks)
+
+    async def fetch_token_details_async(self, address):
+        details = await asyncio.to_thread(self.fetch_token_details, address)
+        if details:
+            self.tokens[address.lower()]['details'] = details
