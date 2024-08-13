@@ -2,11 +2,20 @@ import logging
 from web3 import Web3
 import re
 from decimal import Decimal
+import os
 
 def load_coins(filename="coins.txt"):
-    with open(filename, "r") as file:
-        coins = [line.strip() for line in file]
-    return coins
+    # Use the correct path from utils.coins
+    base_path = os.path.join(os.path.dirname(__file__), '..', 'utils')
+    file_path = os.path.join(base_path, filename)
+    
+    try:
+        with open(file_path, "r") as file:
+            coins = [line.strip() for line in file]
+        return coins
+    except FileNotFoundError:
+        logging.error(f"File {file_path} not found. Please check the path and try again.")
+        return []
 
 # Utility function
 def calculate_transaction_value(tx, avax_to_usd):
