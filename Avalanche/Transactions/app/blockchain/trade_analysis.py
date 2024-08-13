@@ -3,6 +3,7 @@ from web3 import Web3
 import re
 from decimal import Decimal
 import os
+from datetime import datetime
 
 def load_coins(filename="coins.txt"):
     # Use the correct path from utils.coins
@@ -35,17 +36,6 @@ def log_intermediate_transfers(tx_receipt, w3, token_loader):
         token_symbol = token_info['label'] if token_info else 'Unknown Token'
 
         logging.info(f"🔄 Transfer: {amount} {token_symbol} from {from_address} to {to_address}")
-
-# Log the transaction flow through multiple contracts
-def log_transaction_flow(tx_hash, w3, token_loader):
-    tx_receipt = w3.eth.get_transaction_receipt(tx_hash)
-
-    logging.info(f"🔗 Transaction Hash: {tx_hash}")
-    logging.info("📊 Transaction Flow:")
-
-    log_intermediate_transfers(tx_receipt, w3, token_loader)
-
-    logging.info("====================================\n")
 
 # Compare trade outcomes with coins in coins.txt
 def check_trade_outcome(path, coins_list):
@@ -82,35 +72,54 @@ def analyze_trade_or_exchange(tx, w3, avax_to_usd, router_loader, token_loader):
     log_transaction_flow(tx['hash'].hex(), w3, token_loader)
 
 def log_decoded_transaction(tx, router_info, decoded_input, w3, avax_to_usd, token_loader):
-    logging.info("\n====================================")
-    logging.info("🔄 Trade/Exchange Detected:")
-    logging.info("====================================")
-    logging.info(f"🔗 Hash: {tx['hash'].hex()}")
-    logging.info(f"🏦 DEX: {router_info['name']}")
-    logging.info(f"⚙️  Function: {extract_function_name(decoded_input[0])}")
-    logging.info(f"🔄 Action: Token Swap")
-    
-    # Log specific parameters with better formatting
     params = decoded_input[1]
-    for param, value in params.items():
-        if isinstance(value, int):
-            # Format large integers with commas for better readability
-            value = f"{value:,}"
-        logging.info(f"  {param}: {value}")
+    path = params.get('path', [])
     
-    # Check the trade outcome against the coins list
-    coins_list = load_coins()
-    if 'path' in params:
-        check_trade_outcome(params['path'], coins_list)
+    # Get token symbols
+    from_token = token_loader.get_token_info(path[0])
+    to_token = token_loader.get_token_info(path[-1])
+    via_token = token_loader.get_token_info(path[1]) if len(path) > 2 else None
+
+    # Calculate amounts
+    from_amount = Web3.from_wei(int(params.get('amountIn', 0)), 'ether')
+    to_amount = Web3.from_wei(int(params.get('amountOutMin', 0)), 'ether')
+
+    # Get block timestamp
+    block = w3.eth.get_block(tx['blockNumber'])
+    timestamp = datetime.fromtimestamp(block['timestamp'])
+
+    logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])
     
-    # Log transaction value and gas cost
-    value_avax, value_usd = calculate_transaction_value(tx, avax_to_usd)
-    gas_price_navax = Decimal(Web3.from_wei(tx['gasPrice'], 'gwei')) * Decimal(1e9)
-    gas_cost_navax = gas_price_navax * Decimal(tx['gas'])
-    
-    logging.info("====================================")
-    logging.info(f"💰 Transaction Value: {value_avax:.4f} AVAX (${value_usd:.2f} USD)")
-    logging.info(f"⛽ Gas Cost: {gas_cost_navax:.9f} nAVAX")
+    logging.info("📊 Transaction Summary:")
+    logging.info(f"🔗 Hash: {tx['hash'].hex()}")
+    logging.info(f"🕒 Timestamp: {timestamp.strftime('%b-%d-%Y %I:%M:%S %p')} UTC")
+    logging.info(f"📍 Block: {tx['blockNumber']}\n")
+
+    logging.info("💱 Swap Details:")
+    logging.info(f"From: {from_amount:.6f} {from_token['label']}")
+    logging.info(f"To: {to_amount:.6f} {to_token['label']}")
+    if via_token:
+        logging.info(f"Via: [Amount not available] {via_token['label']}")
+    logging.info("")
+
+    logging.info("👤 Addresses:")
+    logging.info(f"Sender: {tx['from']}")
+    logging.info(f"Router: {tx['to']}\n")
+
+    value_avax = Web3.from_wei(tx['value'], 'ether')
+    value_usd = float(value_avax) * avax_to_usd
+    gas_price = Web3.from_wei(tx['gasPrice'], 'gwei')
+    gas_cost_avax = gas_price * Decimal(tx['gas']) / Decimal(1e9)
+    gas_cost_usd = float(gas_cost_avax) * avax_to_usd
+
+    logging.info("💸 Transaction Cost:")
+    logging.info(f"💰 Value: {value_avax:.4f} AVAX (${value_usd:.2f} USD)")
+    logging.info(f"⛽ Gas: {gas_cost_avax:.6f} AVAX (${gas_cost_usd:.2f} USD)\n")
+
+    logging.info("🔍 Additional Info:")
+    if len(path) > 2:
+        logging.info(f"• Multi-hop swap: {' -> '.join([token_loader.get_token_info(t)['label'] for t in path])}")
+    logging.info("• Used method supporting fee-on-transfer tokens")
     logging.info("====================================\n")
 
 def decode_transaction_input(w3, tx, abi):
@@ -147,20 +156,7 @@ def log_basic_transaction_info(tx, router_info, w3, avax_to_usd, token_loader):
     logging.info(f"💰 Value: {value:.4f} AVAX (${value_usd:.2f} USD)")
     logging.info(f"🔄 Possible Action: {from_token} to {to_token}")
     logging.info("====================================\n")
-
-def log_wavax_deposit(tx, w3, avax_to_usd, token_loader):
-    value = w3.from_wei(tx['value'], 'ether')
-    value_usd = float(value) * avax_to_usd
-    wavax_info = token_loader.get_token_info('0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7')  # WAVAX contract address
-    logging.info("\n====================================")
-    logging.info("WAVAX Deposit Detected:")
-    logging.info(f"🔗 Hash: {tx['hash'].hex()}")
-    logging.info(f"📤 From: {tx['from']}")
-    logging.info(f"📥 To: {tx['to']}")
-    logging.info(f"💰 Amount: {value:.4f} AVAX (${value_usd:.2f} USD)")
-    logging.info(f"🔄 Action: Wrapping AVAX to {wavax_info['label'] if wavax_info else 'WAVAX'}")
-    logging.info("====================================\n")
-
+    
 def extract_function_name(function_object):
     if hasattr(function_object, 'function_identifier'):
         return function_object.function_identifier.split('(')[0]
@@ -168,3 +164,14 @@ def extract_function_name(function_object):
         return re.split(r'[\s(]', function_object)[0]
     else:
         return str(function_object).split('(')[0]
+    
+    # Log the transaction flow through multiple contracts
+def log_transaction_flow(tx_hash, w3, token_loader):
+    tx_receipt = w3.eth.get_transaction_receipt(tx_hash)
+
+    logging.info(f"🔗 Transaction Hash: {tx_hash}")
+    logging.info("📊 Transaction Flow:")
+
+    log_intermediate_transfers(tx_receipt, w3, token_loader)
+
+    logging.info("====================================\n")

@@ -72,20 +72,23 @@ def track_transactions(args):
         # Verify required files
         utils_files = ['cexhotwallet.txt', 'whales.txt', 'coins.txt', 'token_mapping.txt']
         expected_abi_files = [
-            'uniswap_v3_router.json',
+            #'uniswap_v3_router.json',
             'trader_joe_router.json',
-            'traderjoe_lbrouterv21.json',
+            'traderjoe_lbrouterV2.json',
             'traderjoelb.json',
-            '1inchnetwork_router.json',
-            '1inchnetwork_aggregationrouter_v5.json',
+            #'1inchnetwork_router.json',
+            #'1inchnetwork_aggregationrouter_v5.json',
             'gmx_position_router.json',
             'lbrouter.json',
-            'odos_router_v2.json',
-            'kyberswap.json',
-            'ggpool.json',
-            'joe_factory.json',
+            #'odos_router_v2.json',
+            #'kyberswap.json',
+            #'ggpool.json',
+            #'joe_factory.json',
             'joepair.json',
-            'pangolin_router.json'
+            'pangolin_router.json',
+            'phar_router.json',
+            'phar_routerV2.json',
+            'pharpair.json'
         ]
 
         if not verify_files(utils_dir, utils_files):
