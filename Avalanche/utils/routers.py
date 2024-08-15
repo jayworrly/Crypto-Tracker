@@ -3,14 +3,15 @@ import json
 import logging
 
 class RouterLoader:
-    def __init__(self, router_directory):
+    def __init__(self, database_directory, router_directory):
+        self.database_directory = database_directory
         self.router_directory = router_directory
         self.routers = {}
         self.load_routers()
 
     def load_routers(self):
         # Update the path to load routers.txt from the new location inside blockchain/routers
-        routers_file = os.path.join(self.router_directory, 'routers.txt')
+        routers_file = os.path.join(self.database_directory, 'routers.txt')
         logging.debug(f"Attempting to load routers from: {routers_file}")
         
         if not os.path.exists(routers_file):

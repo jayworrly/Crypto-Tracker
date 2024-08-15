@@ -70,55 +70,76 @@ def decode_transaction_input(w3, tx, abi):
         return None
 
 def log_lb_router_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
-    # Simplify the function name
     simplified_function_name = extract_function_name(function_name)
     
     logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])
     
     logging.info("📊 Transaction Summary:")
     logging.info(f"🔗 Hash: {tx['hash'].hex()}")
-    logging.info(f"⚙️ Function: {simplified_function_name}")  # Simplified function name
+    logging.info(f"⚙️ Function: {simplified_function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
 
     logging.info("💱 Swap Details:")
     if 'liquidityParameters' in params:
-        lp = params['liquidityParameters']
-        logging.info("Liquidity Parameters:")
-        token_x = token_loader.get_token_info(lp['tokenX'])['label']
-        token_y = token_loader.get_token_info(lp['tokenY'])['label']
-        amount_x = Web3.from_wei(lp['amountX'], 'ether')
-        amount_y = Web3.from_wei(lp['amountY'], 'ether')
-        logging.info(f"  Token X: {token_x} (Amount: {amount_x:.6f})")
-        logging.info(f"  Token Y: {token_y} (Amount: {amount_y:.6f})")
-        logging.info(f"  Bin Step: {lp['binStep']}")
-        logging.info(f"  Active ID Desired: {lp['activeIdDesired']}")
-        logging.info(f"  ID Slippage: {lp['idSlippage']}")
-        logging.info(f"  To: {lp['to']}")
-        logging.info(f"  Refund To: {lp['refundTo']}")
-        logging.info(f"  Deadline: {datetime.fromtimestamp(lp['deadline'])}")
+        log_liquidity_parameters(params['liquidityParameters'], token_loader)
     else:
-        for key, value in params.items():
-            if key == 'path':
-                tokens = [token_loader.get_token_info(addr)['label'] for addr in value['tokenPath']]
-                logging.info(f"Path: {' -> '.join(tokens)}")
-            elif key in ['amountOutMin', 'amountOut']:
-                amount = Web3.from_wei(value, 'ether')
-                token = token_loader.get_token_info(params['path']['tokenPath'][-1])['label']
-                logging.info(f"{key.capitalize()}: {amount:.6f} {token}")
-            elif key == 'deadline':
-                deadline_date = datetime.fromtimestamp(value)
-                logging.info(f"Deadline: {deadline_date}")
-            else:
-                logging.info(f"{key.capitalize()}: {value}")
-    logging.info("")
+        log_swap_details(simplified_function_name, params, token_loader, tx)
 
-    logging.info("👤 Addresses:")
+    logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
     logging.info(f"Router: {tx['to']}\n")
 
     log_transaction_costs(tx, avax_to_usd)
 
     logging.info("====================================\n")
+
+def log_liquidity_parameters(lp, token_loader):
+    token_x = token_loader.get_token_info(lp['tokenX'])['label']
+    token_y = token_loader.get_token_info(lp['tokenY'])['label']
+    amount_x = Web3.from_wei(lp['amountX'], 'ether')
+    amount_y = Web3.from_wei(lp['amountY'], 'ether')
+    logging.info(f"Token X: {token_x} (Amount: {amount_x:.6f})")
+    logging.info(f"Token Y: {token_y} (Amount: {amount_y:.6f})")
+    logging.info(f"Bin Step: {lp['binStep']}")
+    logging.info(f"Active ID Desired: {lp['activeIdDesired']}")
+    logging.info(f"ID Slippage: {lp['idSlippage']}")
+    logging.info(f"To: {lp['to']}")
+    logging.info(f"Refund To: {lp['refundTo']}")
+    logging.info(f"Deadline: {datetime.fromtimestamp(lp['deadline'])}")
+
+def log_swap_details(function_name, params, token_loader, tx):
+    path = params.get('path', {}).get('tokenPath', [])
+    if not path:
+        logging.warning("No token path found in parameters")
+        return
+
+    input_token = token_loader.get_token_info(path[0])['label']
+    output_token = token_loader.get_token_info(path[-1])['label']
+
+    # Determine input amount based on function name
+    if 'exactNATIVE' in function_name:
+        input_amount = Web3.from_wei(tx['value'], 'ether')
+    elif 'exact' in function_name.lower():
+        input_amount = Web3.from_wei(params.get('amountIn', 0), 'ether')
+    else:
+        input_amount = Web3.from_wei(params.get('amountInMax', 0), 'ether')
+
+    # Output amount
+    if 'exact' in function_name.lower() and 'NATIVE' not in function_name:
+        output_amount = Web3.from_wei(params.get('amountOut', 0), 'ether')
+        logging.info(f"Output Amount: {output_amount:.6f} {output_token}")
+    else:
+        output_amount = Web3.from_wei(params.get('amountOutMin', 0), 'ether')
+        logging.info(f"Minimum Output Amount: {output_amount:.6f} {output_token}")
+
+    logging.info(f"Input Token: {input_token}")
+    logging.info(f"Input Amount: {input_amount:.6f}")
+    logging.info(f"Output Token: {output_token}")
+    
+    logging.info(f"Path: {' -> '.join([token_loader.get_token_info(addr)['label'] for addr in path])}")
+    logging.info(f"Recipient: {params.get('to', 'Unknown')}")
+    if 'deadline' in params:
+        logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
 
 def log_transaction_costs(tx, avax_to_usd):
     value_avax = Web3.from_wei(tx['value'], 'ether')

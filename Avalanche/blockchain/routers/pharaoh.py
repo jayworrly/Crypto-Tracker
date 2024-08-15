@@ -75,16 +75,42 @@ def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_
     logging.info(f"⚙️ Function: {function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
 
-    # Add more detailed logging and handling for the Pharaoh router functions here
+    logging.info("💱 Swap Details:")
+    
+    if function_name == "swapCompact":
+        log_pharaoh_swap_compact(params, token_loader, w3)
+    else:
+        logging.info(f"Unhandled function: {function_name}")
 
     logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
     logging.info(f"Router: {tx['to']}")
 
     log_transaction_costs(tx, avax_to_usd)
-
     logging.info("====================================\n")
 
+def log_pharaoh_swap_compact(params, token_loader, w3):
+    path = params.get('path', [])
+    if len(path) < 2:
+        logging.warning("Invalid path length for swapCompact")
+        return
+
+    input_token = token_loader.get_token_info(path[0])
+    output_token = token_loader.get_token_info(path[-1])
+    
+    input_amount = Web3.from_wei(params['amountIn'], 'ether')
+    output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
+
+    logging.info(f"Input Token: {input_token['label']} ({path[0]})")
+    logging.info(f"Input Amount: {input_amount:.6f}")
+    logging.info(f"Output Token: {output_token['label']} ({path[-1]})")
+    logging.info(f"Minimum Output Amount: {output_amount:.6f}")
+    logging.info(f"Recipient: {params['to']}")
+    logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
+
+    if len(path) > 2:
+        intermediate_tokens = [token_loader.get_token_info(addr)['label'] for addr in path[1:-1]]
+        logging.info(f"Intermediate Tokens: {' -> '.join(intermediate_tokens)}")
 
 def log_transaction_costs(tx, avax_to_usd):
     value_avax = Web3.from_wei(tx['value'], 'ether')
@@ -97,33 +123,7 @@ def log_transaction_costs(tx, avax_to_usd):
     logging.info(f"💰 Value: {value_avax:.4f} AVAX (${value_usd:.2f} USD)")
     logging.info(f"⛽ Gas: {gas_cost_avax:.6f} AVAX (${gas_cost_usd:.2f} USD)")
 
-
-def log_odos_swap_compact(params, token_loader):
-    if not params.get('path') or not params['path'][0] or not params['path'][-1]:
-        logging.error("Invalid token path in parameters.")
-        return
-    
-    input_token_info = token_loader.get_token_info(params['path'][0])
-    output_token_info = token_loader.get_token_info(params['path'][-1])
-
-    if not input_token_info or not output_token_info:
-        logging.error("Failed to load token information for the swap.")
-        return
-
-    input_token = input_token_info.get('label', 'Unknown Token')
-    output_token = output_token_info.get('label', 'Unknown Token')
-    
-    input_amount = Web3.from_wei(params['amountIn'], 'ether')
-    output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
-
-    logging.info(f"Input Token: {input_token}")
-    logging.info(f"Input Amount: {input_amount:.6f}")
-    logging.info(f"Output Token: {output_token}")
-    logging.info(f"Minimum Output Amount: {output_amount:.6f}")
-    logging.info(f"Recipient: {params['to']}")
-    logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
-
-def log_odos_swap(params, token_loader):
+def log_pharaoh_swap(params, token_loader):
     token_info = params['tokenInfo']
     input_token = token_loader.get_token_info(token_info['inputToken'])['label']
     output_token = token_loader.get_token_info(token_info['outputToken'])['label']
