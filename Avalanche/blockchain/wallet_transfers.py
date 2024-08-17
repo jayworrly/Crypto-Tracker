@@ -8,14 +8,18 @@ def analyze_wallet_transfer(tx, w3, avax_to_usd, wallet_loader, token_loader):
     value = Decimal(w3.from_wei(tx['value'], 'ether'))
     value_usd = value * Decimal(avax_to_usd)
     
-    gas_price = Decimal(w3.from_wei(tx['gasPrice'], 'gwei'))
-    gas_cost_avax = Decimal(gas_price) * Decimal(tx['gas']) / Decimal(1e9)
-    gas_cost_usd = gas_cost_avax * Decimal(avax_to_usd)
-
     from_label = get_wallet_label(tx['from'], wallet_loader, token_loader)
     to_label = get_wallet_label(tx['to'], wallet_loader, token_loader)
     
-    if from_label or to_label:  # Only log if either the sender or receiver is a known wallet
+    # Check if it's a regular wallet transfer
+    is_regular_transfer = from_label == "(Regular Wallet)" and to_label == "(Regular Wallet)"
+    
+    # Only proceed if it's not a regular transfer, or if it is but the value is above 1000 AVAX
+    if not is_regular_transfer or value > 1000:
+        gas_price = Decimal(w3.from_wei(tx['gasPrice'], 'gwei'))
+        gas_cost_avax = Decimal(gas_price) * Decimal(tx['gas']) / Decimal(1e9)
+        gas_cost_usd = gas_cost_avax * Decimal(avax_to_usd)
+
         block = w3.eth.get_block(tx['blockNumber'])
         timestamp = datetime.utcfromtimestamp(block['timestamp']).strftime('%Y-%m-%d %H:%M:%S UTC')
 
@@ -36,16 +40,14 @@ def analyze_wallet_transfer(tx, w3, avax_to_usd, wallet_loader, token_loader):
         logging.info("====================================\n")
 
 def get_wallet_label(address, wallet_loader, token_loader):
-    """Return a label for known wallets or tokens."""
+    """Return a label for known wallets or indicate if it's a regular wallet transfer."""
     address = address.lower()
     if wallet_loader.is_hot_wallet(address):
         return f"(Hot Wallet: {wallet_loader.get_all_hot_wallets()[address]})"
     elif wallet_loader.is_whale_wallet(address):
         return f"(Whale Wallet: {wallet_loader.get_all_whale_wallets()[address]})"
-    token_info = token_loader.get_token_info(address)
-    if token_info and token_info['label'] != 'Unknown':
-        return f"(Token: {token_info['label']})"
-    return ""
+    else:
+        return "(Regular Wallet)"
 
 def log_token_transfers(tx, w3, token_loader):
     """Log token transfers within a transaction."""

@@ -98,6 +98,11 @@ def log_traderjoe_v2_transaction(tx, router_info, function_name, params, w3, ava
 
     logging.info("====================================\n")
 
+def convert_token_amount(amount, token_address, token_loader):
+    token_info = token_loader.get_token_info(token_address)
+    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
+    return Decimal(amount) / Decimal(10 ** decimals)
+
 def log_traderjoe_v2_exact_swap(function_name, params, token_loader):
     logging.info("Exact Input Swap:")
     path = params['path']
@@ -108,9 +113,9 @@ def log_traderjoe_v2_exact_swap(function_name, params, token_loader):
         input_amount = Web3.from_wei(params['msg.value'], 'ether')
         input_token = 'AVAX'
     else:
-        input_amount = Web3.from_wei(params['amountIn'], 'ether')
+        input_amount = convert_token_amount(params['amountIn'], path['tokenPath'][0], token_loader)
     
-    output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
+    output_amount = convert_token_amount(params['amountOutMin'], path['tokenPath'][-1], token_loader)
     
     logging.info(f"Input Token: {input_token}")
     logging.info(f"Input Amount: {input_amount:.6f}")
@@ -129,11 +134,14 @@ def log_traderjoe_v2_for_exact_swap(function_name, params, token_loader):
     if 'NATIVE' in function_name:
         if function_name.startswith('swapNATIVE'):
             input_token = 'AVAX'
+            input_amount = Web3.from_wei(params['msg.value'], 'ether')
         else:
             output_token = 'AVAX'
+            input_amount = convert_token_amount(params['amountInMax'], path['tokenPath'][0], token_loader)
+    else:
+        input_amount = convert_token_amount(params['amountInMax'], path['tokenPath'][0], token_loader)
     
-    input_amount = Web3.from_wei(params['amountInMax'] if 'amountInMax' in params else params['msg.value'], 'ether')
-    output_amount = Web3.from_wei(params['amountOut'], 'ether')
+    output_amount = convert_token_amount(params['amountOut'], path['tokenPath'][-1], token_loader)
     
     logging.info(f"Input Token: {input_token}")
     logging.info(f"Maximum Input Amount: {input_amount:.6f}")

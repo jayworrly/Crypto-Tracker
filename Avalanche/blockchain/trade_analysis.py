@@ -4,10 +4,11 @@ import os
 from web3 import Web3
 from decimal import Decimal
 from blockchain.routers.lbrouter import analyze_lb_router_transaction
-from blockchain.routers.pangolin_router import analyze_pangolin_transaction
+from blockchain.routers.pangolin_exchange import analyze_pangolin_transaction
 from blockchain.routers.pharaoh import analyze_pharaoh_transaction
-from blockchain.routers.traderjoe_v2 import analyze_traderjoe_v2_transaction
+from blockchain.routers.traderjoe_lbrouterV2 import analyze_traderjoe_v2_transaction
 from blockchain.routers.traderjoe import analyze_traderjoe_router_transaction
+from blockchain.routers.gmx import analyze_gmx_transaction
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -37,7 +38,9 @@ def analyze_trade_or_exchange(tx, w3, avax_to_usd, router_loader, token_loader):
             elif router_info['name'] == 'TraderJoe LBRouterV2':
                 analyze_traderjoe_v2_transaction(tx, w3, avax_to_usd, router_loader, token_loader)
             elif router_info['name'] == 'TraderJoe':
-                analyze_traderjoe_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader)   
+                analyze_traderjoe_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader)
+            elif router_info['name'] == 'GMX Router' or router_info['name'] == 'GMX Position Router':
+                analyze_gmx_transaction(tx, w3, avax_to_usd, router_loader, token_loader)
             else:
                 logging.info(f"Unhandled router: {router_info['name']} for transaction {tx['hash'].hex()}")
 

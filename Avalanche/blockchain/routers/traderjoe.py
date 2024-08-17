@@ -81,7 +81,7 @@ def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3,
     if simplified_function_name.startswith('addLiquidity'):
         log_add_liquidity(simplified_function_name, params, token_loader)
     elif simplified_function_name.startswith('swap'):
-        log_swap(simplified_function_name, params, token_loader)
+        log_swap(simplified_function_name, params, token_loader, tx)
     elif simplified_function_name.startswith('removeLiquidity'):
         log_remove_liquidity(simplified_function_name, params, token_loader)
     else:
@@ -93,6 +93,11 @@ def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3,
 
     log_transaction_costs(tx, avax_to_usd)
     logging.info("====================================\n")
+
+def convert_token_amount(amount, token_address, token_loader):
+    token_info = token_loader.get_token_info(token_address)
+    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
+    return Decimal(amount) / Decimal(10 ** decimals)
 
 def log_add_liquidity(function_name, params, token_loader):
     logging.info("Add Liquidity:")
@@ -114,25 +119,40 @@ def log_add_liquidity(function_name, params, token_loader):
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
 
-def log_swap(function_name, params, token_loader):
+
+def log_swap(function_name, params, token_loader, tx):
     logging.info("Swap Tokens:")
     path = params['path']
-    input_token = token_loader.get_token_info(path[0])['label']
-    output_token = token_loader.get_token_info(path[-1])['label']
-    
-    if 'AVAX' in function_name:
-        if function_name.startswith('swapExactAVAXForTokens'):
-            input_token = 'AVAX'
-        elif function_name.startswith('swapTokensForExactAVAX'):
-            output_token = 'AVAX'
-    
-    input_amount = Web3.from_wei(params['amountIn'], 'ether')
-    output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
-    
-    logging.info(f"Input Token: {input_token}")
+    input_token = token_loader.get_token_info(path[0])
+    output_token = token_loader.get_token_info(path[-1])
+
+    input_token_label = input_token['label']
+    output_token_label = output_token['label']
+
+    if function_name == 'swapExactAVAXForTokens':
+        input_token_label = 'AVAX'
+        input_amount = Web3.from_wei(tx['value'], 'ether')
+        output_amount = convert_token_amount(params['amountOutMin'], path[-1], token_loader)
+    elif function_name == 'swapAVAXForExactTokens':
+        input_token_label = 'AVAX'
+        input_amount = Web3.from_wei(tx['value'], 'ether')
+        output_amount = convert_token_amount(params['amountOut'], path[-1], token_loader)
+    elif function_name == 'swapExactTokensForAVAX':
+        output_token_label = 'AVAX'
+        input_amount = convert_token_amount(params['amountIn'], path[0], token_loader)
+        output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
+    elif function_name == 'swapTokensForExactAVAX':
+        output_token_label = 'AVAX'
+        input_amount = convert_token_amount(params['amountInMax'], path[0], token_loader)
+        output_amount = Web3.from_wei(params['amountOut'], 'ether')
+    else:
+        input_amount = convert_token_amount(params['amountIn'], path[0], token_loader)
+        output_amount = convert_token_amount(params['amountOutMin'], path[-1], token_loader)
+
+    logging.info(f"Input Token: {input_token_label}")
     logging.info(f"Input Amount: {input_amount:.6f}")
-    logging.info(f"Output Token: {output_token}")
-    logging.info(f"Minimum Output Amount: {output_amount:.6f}")
+    logging.info(f"Output Token: {output_token_label}")
+    logging.info(f"Output Amount: {output_amount:.6f}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
     logging.info(f"Path: {' -> '.join([token_loader.get_token_info(token)['label'] for token in path])}")

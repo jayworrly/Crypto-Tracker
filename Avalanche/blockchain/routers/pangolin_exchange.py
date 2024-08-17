@@ -97,6 +97,11 @@ def log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to
 
     logging.info("====================================\n")
 
+def convert_token_amount(amount, token_address, token_loader):
+    token_info = token_loader.get_token_info(token_address)
+    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
+    return Decimal(amount) / Decimal(10 ** decimals)
+
 def log_pangolin_exact_swap(function_name, params, token_loader):
     logging.info("Exact Input Swap:")
     if 'AVAX' in function_name:
@@ -104,10 +109,10 @@ def log_pangolin_exact_swap(function_name, params, token_loader):
         input_amount = Web3.from_wei(params['msg.value'], 'ether')
     else:
         input_token = token_loader.get_token_info(params['path'][0])['label']
-        input_amount = Web3.from_wei(params['amountIn'], 'ether')
+        input_amount = convert_token_amount(params['amountIn'], params['path'][0], token_loader)
     
     output_token = token_loader.get_token_info(params['path'][-1])['label']
-    output_amount = Web3.from_wei(params['amountOutMin'], 'ether')
+    output_amount = convert_token_amount(params['amountOutMin'], params['path'][-1], token_loader)
     
     logging.info(f"Input Token: {input_token}")
     logging.info(f"Input Amount: {input_amount:.6f}")
@@ -124,8 +129,8 @@ def log_pangolin_for_exact_swap(function_name, params, token_loader):
         output_token = token_loader.get_token_info(params['path'][-1])['label']
     
     input_token = token_loader.get_token_info(params['path'][0])['label']
-    input_amount = Web3.from_wei(params['amountInMax'], 'ether')
-    output_amount = Web3.from_wei(params['amountOut'], 'ether')
+    input_amount = convert_token_amount(params['amountInMax'], params['path'][0], token_loader)
+    output_amount = convert_token_amount(params['amountOut'], params['path'][-1], token_loader)
     
     logging.info(f"Input Token: {input_token}")
     logging.info(f"Maximum Input Amount: {input_amount:.6f}")
