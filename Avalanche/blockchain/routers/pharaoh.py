@@ -98,7 +98,7 @@ def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_
     logging.info("💱 Swap Details:")
     
     if simplified_function_name == "swapCompact":
-        log_pharaoh_swap_compact(params, token_loader, w3)
+        log_pharaoh_swap_compact(params, token_loader, w3, tx)  # Add tx here
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
 
@@ -110,28 +110,41 @@ def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_
 
     logging.info("====================================\n")
 
-def log_pharaoh_swap_compact(params, token_loader, w3):
-    # Log all parameters for debugging
+def log_pharaoh_swap_compact(params, token_loader, w3, tx):
     logging.debug(f"Swap Compact params: {params}")
 
-    # Extract tokenX and tokenY addresses
-    token_x = params.get('tokenX')
-    token_y = params.get('tokenY')
+    # Log initial input and final output if available
+    if 'tokenX' in params and 'tokenY' in params:
+        input_token = token_loader.get_token_info(params['tokenX'])['label']
+        output_token = token_loader.get_token_info(params['tokenY'])['label']
+        logging.info(f"Initial Input Token: {input_token}")
+        logging.info(f"Final Output Token: {output_token}")
 
-    # Get token labels
-    input_token = token_loader.get_token_info(token_x)['label'] if token_x else 'Unknown'
-    output_token = token_loader.get_token_info(token_y)['label'] if token_y else 'Unknown'
-    
-    # Extract amounts
-    amount_x_min = Web3.from_wei(params.get('amountXMin', 0), 'ether')
-    amount_y_min = Web3.from_wei(params.get('amountYMin', 0), 'ether')
+    # Log all token transfers from the transaction receipt
+    receipt = w3.eth.get_transaction_receipt(tx['hash'])
+    logging.info("Token Transfers:")
+    for log in receipt.logs:
+        if len(log['topics']) == 3 and log['topics'][0].hex() == '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef':
+            from_address = '0x' + log['topics'][1].hex()[-40:]
+            to_address = '0x' + log['topics'][2].hex()[-40:]
+            token_address = log['address']
 
-    logging.info(f"Input Token: {input_token}")
-    logging.info(f"Output Token: {output_token}")
-    logging.info(f"Minimum Input Amount: {amount_x_min:.6f}")
-    logging.info(f"Minimum Output Amount: {amount_y_min:.6f}")
-    logging.info(f"Recipient: {params.get('to', 'Unknown')}")
+            # Try converting the 'data' value
+            try:
+                amount = Web3.from_wei(int(log['data'].hex(), 16), 'ether')
+            except ValueError as e:
+                logging.error(f"Error converting log data to int: {e}")
+                logging.debug(f"Log data: {log['data']}")
+                continue
 
+            token_info = token_loader.get_token_info(token_address)
+            token_symbol = token_info['label'] if token_info else 'Unknown Token'
+            
+            logging.info(f"  {amount:.6f} {token_symbol}")
+            logging.info(f"    From: {from_address}")
+            logging.info(f"    To: {to_address}")
+
+    # Log detailed swap path if available
     if 'path' in params:
         logging.info("Detailed Swap Path:")
         for i, step in enumerate(params['path']):
@@ -140,22 +153,22 @@ def log_pharaoh_swap_compact(params, token_loader, w3):
                 token_in = token_loader.get_token_info(step.get('tokenIn'))['label']
                 token_out = token_loader.get_token_info(step.get('tokenOut'))['label']
                 
-                # Check if this step is a Uniswap V3 interaction
+                logging.info(f"  Step {i+1}: {router}")
+                logging.info(f"    {token_in} -> {token_out}")
+                
+                # Log Uniswap V3 specific details if applicable
                 uniswap_function, uniswap_params = decode_uniswap_v3_input(w3, step.get('data', '0x'))
                 if uniswap_function:
-                    logging.info(f"  Step {i+1}: Uniswap V3 Pool - {uniswap_function}")
-                    logging.info(f"    {token_in} -> {token_out}")
                     log_uniswap_v3_params(uniswap_params, token_loader)
-                else:
-                    logging.info(f"  Step {i+1}: {router} - {token_in} -> {token_out}")
             elif isinstance(step, str):
                 token_info = token_loader.get_token_info(step)
                 logging.info(f"  Step {i+1}: {token_info['label']} ({step})")
-    
+
+    # Log additional parameters
+    if 'to' in params:
+        logging.info(f"Recipient: {params['to']}")
     if 'deadline' in params:
         logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
-    
-    # Log any additional relevant parameters
     if 'binStep' in params:
         logging.info(f"Bin Step: {params['binStep']}")
 

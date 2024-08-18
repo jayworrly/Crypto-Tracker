@@ -34,8 +34,8 @@ def calculate_transaction_value(tx, avax_to_usd):
     return value_avax, value_usd
 
 def extract_function_name(function_object):
-    if hasattr(function_object, 'function_identifier'):
-        return function_object.function_identifier.split('(')[0]
+    if callable(function_object):
+        return function_object.fn_name if hasattr(function_object, 'fn_name') else function_object.__name__
     elif isinstance(function_object, str):
         return function_object.split('(')[0].split()[-1]
     else:
@@ -43,13 +43,13 @@ def extract_function_name(function_object):
     
 def analyze_pangolin_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
     router_info = router_loader.get_router_info(tx['to'])
-    if not router_info or router_info['name'] != 'Pangolin Router':
+    if not router_info or router_info['name'] != 'Pangolin Exchange':
         return
 
     try:
         abi = router_info.get('abi')
         if not abi:
-            logging.warning(f"Missing ABI for Pangolin Router: {tx['hash'].hex()}")
+            logging.warning(f"Missing ABI for Pangolin Exchange: {tx['hash'].hex()}")
             return
 
         decoded_input = decode_transaction_input(w3, tx, abi)
@@ -74,18 +74,18 @@ def log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to
     logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])  
     logging.info("📊 Transaction Summary:")
     logging.info(f"🔗 Hash: {tx['hash'].hex()}")
-    logging.info(f"⚙️ Function: {function_name}")
+    logging.info(f"⚙️ Function: {simplified_function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
 
     logging.info("💱 Swap Details:")
-    if function_name.startswith('swapExact'):
-        log_pangolin_exact_swap(function_name, params, token_loader)
-    elif function_name.startswith('swap') and 'ForExact' in function_name:
-        log_pangolin_for_exact_swap(function_name, params, token_loader)
-    elif function_name.startswith('add'):
-        log_pangolin_add_liquidity(function_name, params, token_loader)
-    elif function_name.startswith('remove'):
-        log_pangolin_remove_liquidity(function_name, params, token_loader)
+    if simplified_function_name.startswith('swapExact'):
+        log_pangolin_exact_swap(simplified_function_name, params, token_loader)
+    elif simplified_function_name.startswith('swap') and 'ForExact' in simplified_function_name:
+        log_pangolin_for_exact_swap(simplified_function_name, params, token_loader)
+    elif simplified_function_name.startswith('add'):
+        log_pangolin_add_liquidity(simplified_function_name, params, token_loader)
+    elif simplified_function_name.startswith('remove'):
+        log_pangolin_remove_liquidity(simplified_function_name, params, token_loader)
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
 
