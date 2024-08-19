@@ -131,7 +131,7 @@ def track_transactions(args):
             return
 
         # Verify required files
-        database_files = ['cexhotwallet.txt', 'whales.txt', 'coins.txt', 'token_mapping.txt', 'routers.txt']
+        database_files = ['cexhotwallet.txt', 'whales.txt', 'coins.txt', 'routers.txt']
         expected_abi_files = [
             'traderjoe_lbrouterV2.json',
             'gmx_position_router.json',
@@ -155,11 +155,9 @@ def track_transactions(args):
 
         # Load ABIs
         erc20_abi = load_abi(erc_abis_dir, 'erc20_abi.json')
-        erc721_abi = load_abi(erc_abis_dir, 'erc721_abi.json')
-        erc1155_abi = load_abi(erc_abis_dir, 'erc1155_abi.json')
 
         # Load tokens, routers, and wallets
-        token_loader = EnhancedTokenLoader(database_dir, w3, erc20_abi, erc721_abi, erc1155_abi)
+        token_loader = EnhancedTokenLoader(database_dir, w3, erc20_abi)
         router_loader = RouterLoader(database_dir, router_abis_dir)
         wallet_loader = WalletLoader(database_dir)
 

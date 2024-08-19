@@ -115,10 +115,10 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
 
     # Log initial input and final output if available
     if 'tokenX' in params and 'tokenY' in params:
-        input_token = token_loader.get_token_info(params['tokenX'])['label']
-        output_token = token_loader.get_token_info(params['tokenY'])['label']
-        logging.info(f"Initial Input Token: {input_token}")
-        logging.info(f"Final Output Token: {output_token}")
+        input_token = token_loader.get_token_info(params['tokenX'])
+        output_token = token_loader.get_token_info(params['tokenY'])
+        logging.info(f"Initial Input Token: {input_token['label']}")
+        logging.info(f"Final Output Token: {output_token['label']}")
 
     # Log all token transfers from the transaction receipt
     receipt = w3.eth.get_transaction_receipt(tx['hash'])
@@ -129,16 +129,18 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
             to_address = '0x' + log['topics'][2].hex()[-40:]
             token_address = log['address']
 
-            # Try converting the 'data' value
+            # Get token info and use correct decimals
+            token_info = token_loader.get_token_info(token_address)
+            token_symbol = token_info['label']
+            decimals = token_info.get('decimals', 18)
+
+            # Convert the amount using the correct number of decimals
             try:
-                amount = Web3.from_wei(int(log['data'].hex(), 16), 'ether')
+                amount = int(log['data'].hex(), 16) / (10 ** decimals)
             except ValueError as e:
                 logging.error(f"Error converting log data to int: {e}")
                 logging.debug(f"Log data: {log['data']}")
                 continue
-
-            token_info = token_loader.get_token_info(token_address)
-            token_symbol = token_info['label'] if token_info else 'Unknown Token'
             
             logging.info(f"  {amount:.6f} {token_symbol}")
             logging.info(f"    From: {from_address}")
@@ -171,6 +173,7 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
         logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
     if 'binStep' in params:
         logging.info(f"Bin Step: {params['binStep']}")
+
 
 def log_uniswap_v3_params(params, token_loader):
     if 'recipient' in params and 'zeroForOne' in params and 'amountSpecified' in params:

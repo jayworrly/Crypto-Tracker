@@ -92,63 +92,53 @@ def log_gmx_position_router_function(function_name, params, token_loader):
 
 def convert_amount(amount, token_address, token_loader):
     token_info = token_loader.get_token_info(token_address)
-    decimals = token_info.get('decimals', 18)  # Default to 18 if not specified
+    decimals = token_info.get('decimals', 18)
     return Decimal(amount) / Decimal(10 ** decimals)
 
-def log_position_common(params, token_loader, position_type):
-    path = params.get('_path', [])
-    
-    # Check if path is iterable
-    if not isinstance(path, list):
-        logging.error(f"Expected _path to be a list, but got {type(path).__name__}. Params: {params}")
-        return
-    
-    path_labels = [token_loader.get_token_info(token)['label'] for token in path]
-    logging.info(f"{position_type} Position:")
-    logging.info(f"Path: {' -> '.join(path_labels)}")
-    logging.info(f"Index Token: {token_loader.get_token_info(params['_indexToken'])['label']}")
-    logging.info(f"Size Delta: {convert_amount(params['_sizeDelta'], params['_indexToken'], token_loader):.6f}")
-    logging.info(f"Is Long: {params['_isLong']}")
-
-
 def log_increase_position(params, token_loader):
-    log_position_common(params, token_loader, "Increase")
-    logging.info(f"Amount In: {convert_amount(params['_amountIn'], params['_path'][0], token_loader):.6f}")
-    logging.info(f"Min Out: {convert_amount(params['_minOut'], params['_path'][-1], token_loader):.6f}")
-    logging.info(f"Price: {convert_amount(params['_price'], params['_indexToken'], token_loader):.6f}")
+    logging.info("Increase Position:")
+    _log_position_common(params, token_loader)
+    path = params.get('_path', [])
+    logging.info(f"Amount In: {convert_amount(params['_amountIn'], path[0], token_loader):.6f} {token_loader.get_token_info(path[0])['label']}")
+    logging.info(f"Min Out: {convert_amount(params['_minOut'], path[-1], token_loader):.6f} {token_loader.get_token_info(path[-1])['label']}")
+    logging.info(f"Price: {convert_amount(params['_price'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
 
 def log_decrease_position(params, token_loader):
-    log_position_common(params, token_loader, "Decrease")
-    logging.info(f"Collateral Delta: {convert_amount(params['_collateralDelta'], params['_collateralToken'], token_loader):.6f}")
+    logging.info("Decrease Position:")
+    _log_position_common(params, token_loader)
+    logging.info(f"Collateral Delta: {convert_amount(params['_collateralDelta'], params['_collateralToken'], token_loader):.6f} {token_loader.get_token_info(params['_collateralToken'])['label']}")
     logging.info(f"Receiver: {params['_receiver']}")
-    logging.info(f"Price: {convert_amount(params['_price'], params['_indexToken'], token_loader):.6f}")
+    logging.info(f"Price: {convert_amount(params['_price'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
 
 def log_swap(params, token_loader):
     logging.info("Swap:")
     path = [token_loader.get_token_info(token)['label'] for token in params['_path']]
     logging.info(f"Path: {' -> '.join(path)}")
-    logging.info(f"Amount In: {convert_amount(params['_amountIn'], params['_path'][0], token_loader):.6f}")
-    logging.info(f"Min Out: {convert_amount(params['_minOut'], params['_path'][-1], token_loader):.6f}")
+    logging.info(f"Amount In: {convert_amount(params['_amountIn'], params['_path'][0], token_loader):.6f} {path[0]}")
+    logging.info(f"Min Out: {convert_amount(params['_minOut'], params['_path'][-1], token_loader):.6f} {path[-1]}")
     logging.info(f"Receiver: {params['_receiver']}")
 
 def log_create_increase_position(params, token_loader):
-    try:
-        log_position_common(params, token_loader, "Create Increase")
-        logging.info(f"Amount In: {convert_amount(params['_amountIn'], params['_path'][0], token_loader):.6f}")
-        logging.info(f"Min Out: {convert_amount(params['_minOut'], params['_path'][-1], token_loader):.6f}")
-        logging.info(f"Acceptable Price: {convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader):.6f}")
-        logging.info(f"Execution Fee: {Web3.from_wei(params['_executionFee'], 'ether'):.6f} AVAX")
-        logging.info(f"Referral Code: {params['_referralCode'].hex()}")
-    except TypeError as e:
-        logging.error(f"Error processing parameters: {e}")
-        logging.info(f"Parameters: {params}")
+    logging.info("Create Increase Position:")
+    _log_position_common(params, token_loader)
+    path = params.get('_path', [])
+    if '_amountIn' in params and path:
+        logging.info(f"Amount In: {convert_amount(params['_amountIn'], path[0], token_loader):.6f} {token_loader.get_token_info(path[0])['label']}")
+    if '_minOut' in params and path:
+        logging.info(f"Min Out: {convert_amount(params['_minOut'], path[-1], token_loader):.6f} {token_loader.get_token_info(path[-1])['label']}")
+    if '_acceptablePrice' in params:
+        logging.info(f"Acceptable Price: {convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
+    logging.info(f"Execution Fee: {Web3.from_wei(params['_executionFee'], 'ether'):.6f} AVAX")
+    logging.info(f"Referral Code: {params['_referralCode'].hex()}")
 
 def log_create_decrease_position(params, token_loader):
-    log_position_common(params, token_loader, "Create Decrease")
-    logging.info(f"Collateral Delta: {convert_amount(params['_collateralDelta'], params['_path'][0], token_loader):.6f}")
+    logging.info("Create Decrease Position:")
+    _log_position_common(params, token_loader)
+    path = params.get('_path', [])
+    logging.info(f"Collateral Delta: {convert_amount(params['_collateralDelta'], path[0], token_loader):.6f} {token_loader.get_token_info(path[0])['label']}")
     logging.info(f"Receiver: {params['_receiver']}")
-    logging.info(f"Acceptable Price: {convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader):.6f}")
-    logging.info(f"Min Out: {convert_amount(params['_minOut'], params['_path'][-1], token_loader):.6f}")
+    logging.info(f"Acceptable Price: {convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
+    logging.info(f"Min Out: {convert_amount(params['_minOut'], path[-1], token_loader):.6f} {token_loader.get_token_info(path[-1])['label']}")
     logging.info(f"Execution Fee: {Web3.from_wei(params['_executionFee'], 'ether'):.6f} AVAX")
     logging.info(f"Withdraw ETH: {params['_withdrawETH']}")
 
@@ -159,6 +149,14 @@ def log_cancel_increase_position(params):
 def log_cancel_decrease_position(params):
     logging.info("Cancel Decrease Position:")
     logging.info(f"Key: {params['_key'].hex()}")
+
+def _log_position_common(params, token_loader):
+    path = params.get('_path', [])
+    path_labels = [token_loader.get_token_info(token)['label'] for token in path]
+    logging.info(f"Path: {' -> '.join(path_labels)}")
+    logging.info(f"Index Token: {token_loader.get_token_info(params['_indexToken'])['label']}")
+    logging.info(f"Size Delta: {convert_amount(params['_sizeDelta'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
+    logging.info(f"Is Long: {params['_isLong']}")
 
 def log_transaction_costs(tx, avax_to_usd):
     value_avax = Web3.from_wei(tx['value'], 'ether')

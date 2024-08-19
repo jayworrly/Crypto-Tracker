@@ -1,10 +1,16 @@
-from blockchain.connector import SolanaConnector
+import asyncio
+import os
 from blockchain.transactions import TransactionMonitor
+from blockchain.connector import SolanaConnector
+from utils.token_loader import TokenLoader
 
-def main():
-    connector = SolanaConnector()
-    monitor = TransactionMonitor(connector)
-    monitor.start_monitoring()
+async def main():
+    connector = SolanaConnector()  # Initialize your connector
+    token_loader = TokenLoader()  
+    token_file_path = os.path.join("database", "solana_tokens.txt")  # Path to the token file
+    monitor = TransactionMonitor(connector, token_loader, token_file_path)
+    await monitor.start_monitoring()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+

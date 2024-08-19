@@ -95,31 +95,43 @@ def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3,
     logging.info("====================================\n")
 
 def convert_token_amount(amount, token_address, token_loader):
-    token_info = token_loader.get_token_info(token_address)
-    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
-    return Decimal(amount) / Decimal(10 ** decimals)
+    try:
+        token_info = token_loader.get_token_info(token_address)
+        decimals = token_info.get('decimals', 18)  # Get decimals directly from token_info
+        return Decimal(amount) / Decimal(10 ** decimals)
+    except Exception as e:
+        logging.error(f"Error in convert_token_amount: {str(e)}")
+        logging.debug(f"Amount: {amount}, Token Address: {token_address}")
+        return Decimal(0) 
 
 def log_add_liquidity(function_name, params, token_loader):
     logging.info("Add Liquidity:")
-    if 'AVAX' in function_name:
-        token_a = 'AVAX'
-        token_b = token_loader.get_token_info(params.get('token', ''))['label']
-        amount_a = Web3.from_wei(params.get('msg.value', 0), 'ether')
-        amount_b = Web3.from_wei(params.get('amountTokenDesired', 0), 'ether')
-    else:
-        token_a = token_loader.get_token_info(params.get('tokenA', ''))['label']
-        token_b = token_loader.get_token_info(params.get('tokenB', ''))['label']
-        amount_a = Web3.from_wei(params.get('amountADesired', 0), 'ether')
-        amount_b = Web3.from_wei(params.get('amountBDesired', 0), 'ether')
-    
-    logging.info(f"Token A: {token_a}")
-    logging.info(f"Amount A: {amount_a:.6f}")
-    logging.info(f"Token B: {token_b}")
-    logging.info(f"Amount B: {amount_b:.6f}")
-    logging.info(f"Recipient: {params.get('to', 'Unknown')}")
-    deadline = params.get('deadline', 0)
-    logging.info(f"Deadline: {datetime.fromtimestamp(deadline) if deadline else 'Unknown'}")
-
+    try:
+        if 'AVAX' in function_name:
+            token_a = 'AVAX'
+            token_b_address = params.get('token', '')
+            token_b = token_loader.get_token_info(token_b_address)
+            amount_a = Web3.from_wei(params.get('msg.value', 0), 'ether')
+            amount_b = convert_token_amount(params.get('amountTokenDesired', 0), token_b_address, token_loader)
+        else:
+            token_a_address = params.get('tokenA', '')
+            token_b_address = params.get('tokenB', '')
+            token_a = token_loader.get_token_info(token_a_address)
+            token_b = token_loader.get_token_info(token_b_address)
+            amount_a = convert_token_amount(params.get('amountADesired', 0), token_a_address, token_loader)
+            amount_b = convert_token_amount(params.get('amountBDesired', 0), token_b_address, token_loader)
+        
+        logging.info(f"Token A: {token_a['label'] if isinstance(token_a, dict) else token_a}")
+        logging.info(f"Amount A: {amount_a:.6f}")
+        logging.info(f"Token B: {token_b['label'] if isinstance(token_b, dict) else 'Unknown'}")
+        logging.info(f"Amount B: {amount_b:.6f}")
+        logging.info(f"Recipient: {params.get('to', 'Unknown')}")
+        deadline = params.get('deadline', 0)
+        logging.info(f"Deadline: {datetime.fromtimestamp(deadline) if deadline else 'Unknown'}")
+    except Exception as e:
+        logging.error(f"Error in log_add_liquidity: {str(e)}")
+        logging.debug(f"Function: {function_name}")
+        logging.debug(f"Params: {params}")
 
 def log_swap(function_name, params, token_loader, tx):
     logging.info("Swap Tokens:")
@@ -160,21 +172,21 @@ def log_swap(function_name, params, token_loader, tx):
 
 def log_remove_liquidity(function_name, params, token_loader):
     logging.info("Remove Liquidity:")
-    token_a = token_loader.get_token_info(params['tokenA'])['label']
-    token_b = token_loader.get_token_info(params['tokenB'])['label']
+    token_a = token_loader.get_token_info(params['tokenA'])
+    token_b = token_loader.get_token_info(params['tokenB'])
     
     if function_name.endswith('AVAX'):
-        if token_a == 'WAVAX':
-            token_a = 'AVAX'
-        elif token_b == 'WAVAX':
-            token_b = 'AVAX'
+        if token_a['label'] == 'WAVAX':
+            token_a['label'] = 'AVAX'
+        elif token_b['label'] == 'WAVAX':
+            token_b['label'] = 'AVAX'
     
-    amount_a = Web3.from_wei(params['amountAMin'], 'ether')
-    amount_b = Web3.from_wei(params['amountBMin'], 'ether')
+    amount_a = convert_token_amount(params['amountAMin'], params['tokenA'], token_loader)
+    amount_b = convert_token_amount(params['amountBMin'], params['tokenB'], token_loader)
     
-    logging.info(f"Token A: {token_a}")
+    logging.info(f"Token A: {token_a['label']}")
     logging.info(f"Amount A: {amount_a:.6f}")
-    logging.info(f"Token B: {token_b}")
+    logging.info(f"Token B: {token_b['label']}")
     logging.info(f"Amount B: {amount_b:.6f}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")

@@ -107,21 +107,39 @@ def log_liquidity_parameters(lp, token_loader):
     logging.info(f"Refund To: {lp['refundTo']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(lp['deadline'])}")
 
+def log_debug_info(message, data):
+    logging.debug(f"DEBUG - {message}: {json.dumps(data, default=str)}")
+
+
 def convert_token_amount(amount, token_address, token_loader):
     token_info = token_loader.get_token_info(token_address)
-    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
-    return Decimal(amount) / Decimal(10 ** decimals)
+    decimals = token_info.get('decimals', 18)  # Get decimals directly from token_info
+    log_debug_info("Token Info", token_info)
+    log_debug_info("Decimals", decimals)
+    log_debug_info("Raw Amount", amount)
+    converted_amount = Decimal(amount) / Decimal(10 ** decimals)
+    log_debug_info("Converted Amount", str(converted_amount))
+    return converted_amount
 
 def log_swap_details(function_name, params, token_loader, tx):
+    logging.debug("Starting log_swap_details function")
+    log_debug_info("Function Name", function_name)
+    log_debug_info("Parameters", params)
+    
     path = params.get('path', {}).get('tokenPath', [])
     if not path:
         logging.warning("No token path found in parameters")
         return
 
+    log_debug_info("Token Path", path)
+
     input_token_address = path[0]
     output_token_address = path[-1]
-    input_token = token_loader.get_token_info(input_token_address)['label']
-    output_token = token_loader.get_token_info(output_token_address)['label']
+    input_token = token_loader.get_token_info(input_token_address)
+    output_token = token_loader.get_token_info(output_token_address)
+
+    log_debug_info("Input Token", input_token)
+    log_debug_info("Output Token", output_token)
 
     if 'exactNATIVE' in function_name:
         input_amount = Web3.from_wei(tx['value'], 'ether')
@@ -130,17 +148,19 @@ def log_swap_details(function_name, params, token_loader, tx):
     else:
         input_amount = convert_token_amount(params.get('amountInMax', 0), input_token_address, token_loader)
 
-    logging.info(f"Input Token: {input_token}")
+    logging.info(f"Input Token: {input_token['label']}")
     logging.info(f"Input Amount: {input_amount:.6f}")
-    logging.info(f"Output Token: {output_token}")
+    logging.info(f"Output Token: {output_token['label']}")
 
     if 'exact' in function_name.lower() and 'NATIVE' not in function_name:
         output_amount = convert_token_amount(params.get('amountOut', 0), output_token_address, token_loader)
-        logging.info(f"Output Amount: {output_amount:.6f} {output_token}")
+        logging.info(f"Output Amount: {output_amount:.6f} {output_token['label']}")
     else:
         output_amount = convert_token_amount(params.get('amountOutMin', 0), output_token_address, token_loader)
-        logging.info(f"Minimum Output Amount: {output_amount:.6f} {output_token}")
+        logging.info(f"Minimum Output Amount: {output_amount:.6f} {output_token['label']}")
 
+    log_debug_info("Final Input Amount", str(input_amount))
+    log_debug_info("Final Output Amount", str(output_amount))
     
     logging.info(f"Path: {' -> '.join([token_loader.get_token_info(addr)['label'] for addr in path])}")
     logging.info(f"Recipient: {params.get('to', 'Unknown')}")

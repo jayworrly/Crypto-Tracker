@@ -99,14 +99,18 @@ def log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to
 
 def convert_token_amount(amount, token_address, token_loader):
     token_info = token_loader.get_token_info(token_address)
-    decimals = token_info.get('details', {}).get('decimals', 18)  # Default to 18 if not specified
+    decimals = token_info.get('decimals', 18)  # Get decimals directly from token_info
     return Decimal(amount) / Decimal(10 ** decimals)
 
 def log_pangolin_exact_swap(function_name, params, token_loader):
     logging.info("Exact Input Swap:")
     if 'AVAX' in function_name:
         input_token = 'AVAX'
-        input_amount = Web3.from_wei(params['msg.value'], 'ether')
+        if 'msg.value' in params:
+            input_amount = Web3.from_wei(params['msg.value'], 'ether')
+        else:
+            logging.error("msg.value is missing from transaction parameters")
+            return
     else:
         input_token = token_loader.get_token_info(params['path'][0])['label']
         input_amount = convert_token_amount(params['amountIn'], params['path'][0], token_loader)
@@ -129,7 +133,13 @@ def log_pangolin_for_exact_swap(function_name, params, token_loader):
         output_token = token_loader.get_token_info(params['path'][-1])['label']
     
     input_token = token_loader.get_token_info(params['path'][0])['label']
-    input_amount = convert_token_amount(params['amountInMax'], params['path'][0], token_loader)
+    
+    if 'amountInMax' in params:
+        input_amount = convert_token_amount(params['amountInMax'], params['path'][0], token_loader)
+    else:
+        logging.error("amountInMax is missing from transaction parameters")
+        return
+
     output_amount = convert_token_amount(params['amountOut'], params['path'][-1], token_loader)
     
     logging.info(f"Input Token: {input_token}")
@@ -143,18 +153,18 @@ def log_pangolin_add_liquidity(function_name, params, token_loader):
     logging.info("Add Liquidity:")
     if 'AVAX' in function_name:
         token_a = 'AVAX'
-        token_b = token_loader.get_token_info(params['token'])['label']
+        token_b = token_loader.get_token_info(params['token'])
         amount_a = Web3.from_wei(params['msg.value'], 'ether')
-        amount_b = Web3.from_wei(params['amountTokenDesired'], 'ether')
+        amount_b = convert_token_amount(params['amountTokenDesired'], params['token'], token_loader)
     else:
-        token_a = token_loader.get_token_info(params['tokenA'])['label']
-        token_b = token_loader.get_token_info(params['tokenB'])['label']
-        amount_a = Web3.from_wei(params['amountADesired'], 'ether')
-        amount_b = Web3.from_wei(params['amountBDesired'], 'ether')
+        token_a = token_loader.get_token_info(params['tokenA'])
+        token_b = token_loader.get_token_info(params['tokenB'])
+        amount_a = convert_token_amount(params['amountADesired'], params['tokenA'], token_loader)
+        amount_b = convert_token_amount(params['amountBDesired'], params['tokenB'], token_loader)
     
-    logging.info(f"Token A: {token_a}")
+    logging.info(f"Token A: {token_a['label'] if isinstance(token_a, dict) else token_a}")
     logging.info(f"Amount A: {amount_a:.6f}")
-    logging.info(f"Token B: {token_b}")
+    logging.info(f"Token B: {token_b['label']}")
     logging.info(f"Amount B: {amount_b:.6f}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
@@ -163,15 +173,15 @@ def log_pangolin_remove_liquidity(function_name, params, token_loader):
     logging.info("Remove Liquidity:")
     if 'AVAX' in function_name:
         token_a = 'AVAX'
-        token_b = token_loader.get_token_info(params['token'])['label']
+        token_b = token_loader.get_token_info(params['token'])
     else:
-        token_a = token_loader.get_token_info(params['tokenA'])['label']
-        token_b = token_loader.get_token_info(params['tokenB'])['label']
+        token_a = token_loader.get_token_info(params['tokenA'])
+        token_b = token_loader.get_token_info(params['tokenB'])
     
     liquidity = Web3.from_wei(params['liquidity'], 'ether')
     
-    logging.info(f"Token A: {token_a}")
-    logging.info(f"Token B: {token_b}")
+    logging.info(f"Token A: {token_a['label'] if isinstance(token_a, dict) else token_a}")
+    logging.info(f"Token B: {token_b['label']}")
     logging.info(f"Liquidity to Remove: {liquidity:.6f}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
