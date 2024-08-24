@@ -1,5 +1,7 @@
+import sys
+import os
 import logging
-from .wallet_transfers import analyze_wallet_transfer
+from blockchain.wallet.wallet_transfers import analyze_wallet_transfer
 from .trade_analysis import analyze_trade_or_exchange
 
 def analyze_transaction(tx, w3, threshold_usd, avax_to_usd, token_loader, router_loader, wallet_loader, known_routers):

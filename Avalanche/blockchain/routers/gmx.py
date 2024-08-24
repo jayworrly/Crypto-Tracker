@@ -85,10 +85,22 @@ def log_gmx_position_router_function(function_name, params, token_loader):
         log_cancel_increase_position(params)
     elif "cancelDecreasePosition" in function_name_str:
         log_cancel_decrease_position(params)
+    elif "setMaxGlobabSizes" in function_name_str:
+        logging.info("Set Max Global Sizes:")
+        logging.info(f"Max Long Size: {params['_maxLongSize']} {token_loader.get_token_info(params['_indexToken'])['label']}")
+        logging.info(f"Max Short Size: {params['_maxShortSize']} {token_loader.get_token_info(params['_indexToken'])['label']}")
     else:
         logging.info(f"Unhandled GMX Position Router function: {function_name_str}")
         logging.info(f"Parameters: {params}")
 
+def log_set_max_global_sizes(params, token_loader):
+    logging.info("Set Max Global Sizes:")
+    for token, long_size, short_size in zip(params['_tokens'], params['_longSizes'], params['_shortSizes']):
+        token_info = token_loader.get_token_info(token)
+        token_symbol = token_info['label'] if token_info else 'Unknown Token'
+        logging.info(f"Token: {token_symbol} ({token})")
+        logging.info(f"  Max Long Size: {long_size}")
+        logging.info(f"  Max Short Size: {short_size}")
 
 def convert_amount(amount, token_address, token_loader):
     token_info = token_loader.get_token_info(token_address)

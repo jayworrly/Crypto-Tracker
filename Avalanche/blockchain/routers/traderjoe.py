@@ -71,26 +71,22 @@ def decode_transaction_input(w3, tx, abi):
 
 def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
     simplified_function_name = extract_function_name(function_name)
-    
     logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])
     logging.info("📊 Transaction Summary:")
     logging.info(f"🔗 Hash: {tx['hash'].hex()}")
     logging.info(f"⚙️ Function: {simplified_function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
-
     if simplified_function_name.startswith('addLiquidity'):
         log_add_liquidity(simplified_function_name, params, token_loader)
     elif simplified_function_name.startswith('swap'):
-        log_swap(simplified_function_name, params, token_loader, tx)
+        log_swap(simplified_function_name, params, token_loader, tx, avax_to_usd)
     elif simplified_function_name.startswith('removeLiquidity'):
         log_remove_liquidity(simplified_function_name, params, token_loader)
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
-
     logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
     logging.info(f"Router: {tx['to']}")
-
     log_transaction_costs(tx, avax_to_usd)
     logging.info("====================================\n")
 
@@ -133,7 +129,7 @@ def log_add_liquidity(function_name, params, token_loader):
         logging.debug(f"Function: {function_name}")
         logging.debug(f"Params: {params}")
 
-def log_swap(function_name, params, token_loader, tx):
+def log_swap(function_name, params, token_loader, tx, avax_to_usd):
     logging.info("Swap Tokens:")
     path = params['path']
     input_token = token_loader.get_token_info(path[0])
@@ -167,9 +163,14 @@ def log_swap(function_name, params, token_loader, tx):
     logging.info(f"Output Token: {output_token_label}")
     logging.info(f"Output Amount: {output_amount:.6f}")
     logging.info(f"Recipient: {params['to']}")
-    logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
+    
+    try:
+        deadline = datetime.fromtimestamp(params['deadline'])
+        logging.info(f"Deadline: {deadline}")
+    except (OSError, ValueError, OverflowError) as e:
+        logging.warning(f"Invalid deadline value: {params['deadline']}. Error: {str(e)}")
+    
     logging.info(f"Path: {' -> '.join([token_loader.get_token_info(token)['label'] for token in path])}")
-
 def log_remove_liquidity(function_name, params, token_loader):
     logging.info("Remove Liquidity:")
     token_a = token_loader.get_token_info(params['tokenA'])

@@ -154,7 +154,7 @@ def log_pangolin_add_liquidity(function_name, params, token_loader):
     if 'AVAX' in function_name:
         token_a = 'AVAX'
         token_b = token_loader.get_token_info(params['token'])
-        amount_a = Web3.from_wei(params['msg.value'], 'ether')
+        amount_a = Web3.from_wei(params.get('msg.value', 0), 'ether')  # Use .get() with a default value
         amount_b = convert_token_amount(params['amountTokenDesired'], params['token'], token_loader)
     else:
         token_a = token_loader.get_token_info(params['tokenA'])
