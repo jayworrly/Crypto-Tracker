@@ -1,6 +1,6 @@
 from web3 import Web3
 from web3.exceptions import ContractLogicError
-from web3.middleware import ExtraDataToPOAMiddleware
+from web3.middleware import geth_poa_middleware
 import yaml
 import requests
 
@@ -16,7 +16,7 @@ class BlockchainConnector:
 
     def connect(self):
         w3 = Web3(Web3.HTTPProvider(self.config['avalanche']['rpc_url']))
-        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         if not w3.is_connected():
             raise ConnectionError("Failed to connect to the Avalanche network")
         return w3

@@ -43,7 +43,6 @@ def extract_function_name(function_object):
     else:
         return str(function_object).split('(')[0]
 
-
 def analyze_lb_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
     router_info = router_loader.get_router_info(tx['to'])
     if not router_info or router_info['name'] != 'LBRouter':

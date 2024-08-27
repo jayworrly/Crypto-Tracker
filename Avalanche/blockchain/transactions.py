@@ -1,5 +1,3 @@
-import sys
-import os
 import logging
 from blockchain.wallet.wallet_transfers import analyze_wallet_transfer
 from .trade_analysis import analyze_trade_or_exchange
