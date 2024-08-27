@@ -68,7 +68,7 @@ def log_gmx_router_function(function_name, params, token_loader):
         log_increase_position(params, token_loader)
     elif "decreasePosition" in function_name:
         log_decrease_position(params, token_loader)
-    elif "swap" in function_name:
+    elif "swap" in function_name:  # Add general support for swap functions
         log_swap(params, token_loader)
     else:
         logging.info(f"Unhandled GMX Router function: {function_name}")
@@ -85,10 +85,8 @@ def log_gmx_position_router_function(function_name, params, token_loader):
         log_cancel_increase_position(params)
     elif "cancelDecreasePosition" in function_name_str:
         log_cancel_decrease_position(params)
-    elif "setMaxGlobabSizes" in function_name_str:
-        logging.info("Set Max Global Sizes:")
-        logging.info(f"Max Long Size: {params['_maxLongSize']} {token_loader.get_token_info(params['_indexToken'])['label']}")
-        logging.info(f"Max Short Size: {params['_maxShortSize']} {token_loader.get_token_info(params['_indexToken'])['label']}")
+    elif "setMaxGlobalSizes" in function_name_str:  # Add handler for setMaxGlobalSizes
+        log_set_max_global_sizes(params, token_loader)
     else:
         logging.info(f"Unhandled GMX Position Router function: {function_name_str}")
         logging.info(f"Parameters: {params}")

@@ -11,19 +11,17 @@ BASE_PATH = os.path.join(os.path.dirname(__file__), '.', 'utils')
 # Get the directory where the current script is located
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
-# Construct the absolute path to the 'pharaoh.json' file
-json_path = os.path.join(current_directory, 'pharaoh.json')
+# Load ABIs
+pharaoh_json_path = os.path.join(current_directory, 'pharaoh.json')
+uniswap_v3_json_path = os.path.join(current_directory, 'uniswapV3pool.json')
 
-# Load the Pharaoh ABI from the JSON file
-with open(json_path, 'r') as abi_file:
+with open(pharaoh_json_path, 'r') as abi_file:
     PHAR = json.load(abi_file)
 
-# Load the Uniswap V3 Pool ABI
-uniswap_v3_json_path = os.path.join(current_directory, 'uniswapV3pool.json')
 with open(uniswap_v3_json_path, 'r') as abi_file:
     UNISWAP_V3_POOL_ABI = json.load(abi_file)
 
-# Utility functions
+# Utility Functions
 def load_coins(filename="coins.txt"):
     file_path = os.path.join(BASE_PATH, filename)
     try:
@@ -32,7 +30,7 @@ def load_coins(filename="coins.txt"):
     except FileNotFoundError:
         logging.error(f"File {file_path} not found. Please check the path and try again.")
         return []
-    
+
 def calculate_transaction_value(tx, avax_to_usd):
     value_avax = Web3.from_wei(tx['value'], 'ether')
     value_usd = Decimal(value_avax) * Decimal(avax_to_usd)
@@ -54,6 +52,7 @@ def decode_uniswap_v3_input(w3, input_data):
     except:
         return None, None
 
+# Pharaoh Transaction Handling
 def analyze_pharaoh_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
     router_info = router_loader.get_router_info(tx['to'])
     if not router_info or router_info['name'] != 'Pharaoh':
@@ -86,6 +85,7 @@ def decode_transaction_input(w3, tx, abi):
         logging.error(f"Failed to decode transaction input: {e}")
         return None
 
+# Logging Functions
 def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
     simplified_function_name = extract_function_name(function_name)
 
@@ -98,7 +98,7 @@ def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_
     logging.info("💱 Swap Details:")
     
     if simplified_function_name == "swapCompact":
-        log_pharaoh_swap_compact(params, token_loader, w3, tx)  # Add tx here
+        log_pharaoh_swap_compact(params, token_loader, w3, tx)
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
 
@@ -107,20 +107,17 @@ def log_pharaoh_transaction(tx, router_info, function_name, params, w3, avax_to_
     logging.info(f"Router: {tx['to']}")
 
     log_transaction_costs(tx, avax_to_usd)
-
     logging.info("====================================\n")
 
 def log_pharaoh_swap_compact(params, token_loader, w3, tx):
     logging.debug(f"Swap Compact params: {params}")
 
-    # Log initial input and final output if available
     if 'tokenX' in params and 'tokenY' in params:
         input_token = token_loader.get_token_info(params['tokenX'])
         output_token = token_loader.get_token_info(params['tokenY'])
         logging.info(f"Initial Input Token: {input_token['label']}")
         logging.info(f"Final Output Token: {output_token['label']}")
 
-    # Log all token transfers from the transaction receipt
     receipt = w3.eth.get_transaction_receipt(tx['hash'])
     logging.info("Token Transfers:")
     for log in receipt.logs:
@@ -129,12 +126,10 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
             to_address = '0x' + log['topics'][2].hex()[-40:]
             token_address = log['address']
 
-            # Get token info and use correct decimals
             token_info = token_loader.get_token_info(token_address)
             token_symbol = token_info['label']
             decimals = token_info.get('decimals', 18)
 
-            # Convert the amount using the correct number of decimals
             try:
                 amount = int(log['data'].hex(), 16) / (10 ** decimals)
             except ValueError as e:
@@ -146,7 +141,6 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
             logging.info(f"    From: {from_address}")
             logging.info(f"    To: {to_address}")
 
-    # Log detailed swap path if available
     if 'path' in params:
         logging.info("Detailed Swap Path:")
         for i, step in enumerate(params['path']):
@@ -158,7 +152,6 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
                 logging.info(f"  Step {i+1}: {router}")
                 logging.info(f"    {token_in} -> {token_out}")
                 
-                # Log Uniswap V3 specific details if applicable
                 uniswap_function, uniswap_params = decode_uniswap_v3_input(w3, step.get('data', '0x'))
                 if uniswap_function:
                     log_uniswap_v3_params(uniswap_params, token_loader)
@@ -166,39 +159,12 @@ def log_pharaoh_swap_compact(params, token_loader, w3, tx):
                 token_info = token_loader.get_token_info(step)
                 logging.info(f"  Step {i+1}: {token_info['label']} ({step})")
 
-    # Log additional parameters
     if 'to' in params:
         logging.info(f"Recipient: {params['to']}")
     if 'deadline' in params:
         logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
     if 'binStep' in params:
         logging.info(f"Bin Step: {params['binStep']}")
-
-
-def log_uniswap_v3_params(params, token_loader):
-    if 'recipient' in params and 'zeroForOne' in params and 'amountSpecified' in params:
-        direction = "Token0 to Token1" if params['zeroForOne'] else "Token1 to Token0"
-        amount = Web3.from_wei(abs(int(params['amountSpecified'])), 'ether')
-        logging.info(f"    Direction: {direction}")
-        logging.info(f"    Amount Specified: {amount:.6f}")
-        logging.info(f"    Recipient: {params['recipient']}")
-        
-        if 'sqrtPriceLimitX96' in params:
-            sqrt_price_limit = int(params['sqrtPriceLimitX96'])
-            logging.info(f"    Square Root Price Limit X96: {sqrt_price_limit}")
-    else:
-        logging.info("    Uniswap V3 swap details not fully available")
-
-def log_transaction_costs(tx, avax_to_usd):
-    value_avax = Web3.from_wei(tx['value'], 'ether')
-    value_usd = float(value_avax) * avax_to_usd
-    gas_price = Web3.from_wei(tx['gasPrice'], 'gwei')
-    gas_cost_avax = gas_price * Decimal(tx['gas']) / Decimal(1e9)
-    gas_cost_usd = float(gas_cost_avax) * avax_to_usd
-
-    logging.info("\n💸 Transaction Cost:")
-    logging.info(f"💰 Value: {value_avax:.4f} AVAX (${value_usd:.2f} USD)")
-    logging.info(f"⛽ Gas: {gas_cost_avax:.6f} AVAX (${gas_cost_usd:.2f} USD)")
 
 def log_pharaoh_swap(params, token_loader):
     token_info = params['tokenInfo']
@@ -231,3 +197,31 @@ def log_pharaoh_swap_multi(params, token_loader):
         logging.info(f"  Receiver: {output_token['receiver']}")
     
     logging.info(f"\nMinimum Output Value: {Web3.from_wei(params['valueOutMin'], 'ether'):.6f}")
+
+# Uniswap V3-specific Logging
+def log_uniswap_v3_params(params, token_loader):
+    if 'recipient' in params and 'zeroForOne' in params and 'amountSpecified' in params:
+        direction = "Token0 to Token1" if params['zeroForOne'] else "Token1 to Token0"
+        amount = Web3.from_wei(abs(int(params['amountSpecified'])), 'ether')
+        logging.info(f"    Direction: {direction}")
+        logging.info(f"    Amount Specified: {amount:.6f}")
+        logging.info(f"    Recipient: {params['recipient']}")
+        
+        if 'sqrtPriceLimitX96' in params:
+            sqrt_price_limit = int(params['sqrtPriceLimitX96'])
+            logging.info(f"    Square Root Price Limit X96: {sqrt_price_limit}")
+    else:
+        logging.info("    Uniswap V3 swap details not fully available")
+
+# Transaction Cost Logging
+def log_transaction_costs(tx, avax_to_usd):
+    value_avax = Web3.from_wei(tx['value'], 'ether')
+    value_usd = float(value_avax) * avax_to_usd
+    gas_price = Web3.from_wei(tx['gasPrice'], 'gwei')
+    gas_cost_avax = gas_price * Decimal(tx['gas']) / Decimal(1e9)
+    gas_cost_usd = float(gas_cost_avax) * avax_to_usd
+
+    logging.info("\n💸 Transaction Cost:")
+    logging.info(f"💰 Value: {value_avax:.4f} AVAX (${value_usd:.2f} USD)")
+    logging.info(f"⛽ Gas: {gas_cost_avax:.6f} AVAX (${gas_cost_usd:.2f} USD)")
+

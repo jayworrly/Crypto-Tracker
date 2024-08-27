@@ -34,12 +34,15 @@ def calculate_transaction_value(tx, avax_to_usd):
     return value_avax, value_usd
 
 def extract_function_name(function_object):
-    if hasattr(function_object, 'function_identifier'):
+    if hasattr(function_object, 'fn_name'):
+        return function_object.fn_name
+    elif hasattr(function_object, 'function_identifier'):
         return function_object.function_identifier.split('(')[0]
     elif isinstance(function_object, str):
         return function_object.split('(')[0].split()[-1]
     else:
         return str(function_object).split('(')[0]
+
 
 def analyze_lb_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
     router_info = router_loader.get_router_info(tx['to'])
@@ -122,27 +125,19 @@ def convert_token_amount(amount, token_address, token_loader):
     return converted_amount
 
 def log_swap_details(function_name, params, token_loader, tx):
-    logging.debug("Starting log_swap_details function")
-    log_debug_info("Function Name", function_name)
-    log_debug_info("Parameters", params)
-    
     path = params.get('path', {}).get('tokenPath', [])
     if not path:
         logging.warning("No token path found in parameters")
         return
-
-    log_debug_info("Token Path", path)
 
     input_token_address = path[0]
     output_token_address = path[-1]
     input_token = token_loader.get_token_info(input_token_address)
     output_token = token_loader.get_token_info(output_token_address)
 
-    log_debug_info("Input Token", input_token)
-    log_debug_info("Output Token", output_token)
-
-    if 'exactNATIVE' in function_name:
-        input_amount = Web3.from_wei(tx['value'], 'ether')
+    # Handle WAVAX or NATIVE transactions separately
+    if 'exactNATIVE' in function_name or input_token['label'] == 'WAVAX':
+        input_amount = Web3.from_wei(tx['value'], 'ether')  # This is for native AVAX (WAVAX also handled here)
     elif 'exact' in function_name.lower():
         input_amount = convert_token_amount(params.get('amountIn', 0), input_token_address, token_loader)
     else:
@@ -159,13 +154,11 @@ def log_swap_details(function_name, params, token_loader, tx):
         output_amount = convert_token_amount(params.get('amountOutMin', 0), output_token_address, token_loader)
         logging.info(f"Minimum Output Amount: {output_amount:.6f} {output_token['label']}")
 
-    log_debug_info("Final Input Amount", str(input_amount))
-    log_debug_info("Final Output Amount", str(output_amount))
-    
     logging.info(f"Path: {' -> '.join([token_loader.get_token_info(addr)['label'] for addr in path])}")
     logging.info(f"Recipient: {params.get('to', 'Unknown')}")
     if 'deadline' in params:
         logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
+
 
 def log_transaction_costs(tx, avax_to_usd):
     value_avax = Web3.from_wei(tx['value'], 'ether')

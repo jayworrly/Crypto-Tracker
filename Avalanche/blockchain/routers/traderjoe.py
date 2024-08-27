@@ -34,12 +34,16 @@ def calculate_transaction_value(tx, avax_to_usd):
     return value_avax, value_usd
 
 def extract_function_name(function_object):
-    if hasattr(function_object, 'function_identifier'):
+    # Ensure that the function object is handled correctly to extract the name
+    if hasattr(function_object, 'fn_name'):
+        return function_object.fn_name
+    elif hasattr(function_object, 'function_identifier'):
         return function_object.function_identifier.split('(')[0]
     elif isinstance(function_object, str):
         return function_object.split('(')[0].split()[-1]
     else:
         return str(function_object).split('(')[0]
+
 
 def analyze_traderjoe_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
     router_info = router_loader.get_router_info(tx['to'])
@@ -70,12 +74,15 @@ def decode_transaction_input(w3, tx, abi):
         return None, None
 
 def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
+    # Ensure the function name is extracted correctly
     simplified_function_name = extract_function_name(function_name)
+    
     logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])
     logging.info("📊 Transaction Summary:")
     logging.info(f"🔗 Hash: {tx['hash'].hex()}")
     logging.info(f"⚙️ Function: {simplified_function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
+    
     if simplified_function_name.startswith('addLiquidity'):
         log_add_liquidity(simplified_function_name, params, token_loader)
     elif simplified_function_name.startswith('swap'):
@@ -84,11 +91,13 @@ def log_traderjoe_router_transaction(tx, router_info, function_name, params, w3,
         log_remove_liquidity(simplified_function_name, params, token_loader)
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
+    
     logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
     logging.info(f"Router: {tx['to']}")
     log_transaction_costs(tx, avax_to_usd)
     logging.info("====================================\n")
+
 
 def convert_token_amount(amount, token_address, token_loader):
     try:
