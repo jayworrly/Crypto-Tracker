@@ -9,6 +9,7 @@ class BlockchainConnector:
         self.config = self.load_config(config_path)
         self.w3 = self.connect()
         self.avax_to_usd = self.get_avax_price()
+        self.last_processed_block = None
 
     def load_config(self, config_path):
         with open(config_path, 'r') as file:
@@ -23,10 +24,18 @@ class BlockchainConnector:
 
     def get_recent_transactions(self, block_count=5):
         latest_block_number = self.w3.eth.block_number
+        
+        if self.last_processed_block is None:
+            start_block = latest_block_number - block_count + 1
+        else:
+            start_block = self.last_processed_block + 1
+
         transactions = []
-        for i in range(block_count):
-            block = self.w3.eth.get_block(latest_block_number - i, full_transactions=True)
+        for block_number in range(start_block, latest_block_number + 1):
+            block = self.w3.eth.get_block(block_number, full_transactions=True)
             transactions.extend(block['transactions'])
+
+        self.last_processed_block = latest_block_number
         return transactions
 
     def get_avax_price(self):
