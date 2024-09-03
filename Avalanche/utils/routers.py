@@ -3,37 +3,25 @@ import json
 import logging
 
 class RouterLoader:
-    def __init__(self, database_directory, router_directory):
-        self.database_directory = database_directory
-        self.router_directory = router_directory
-        self.routers = {}
-        self.load_routers()
+    def __init__(self, database_dir, router_abis_dir):
+        self.database_dir = database_dir
+        self.router_abis_dir = router_abis_dir
+        self.routers = self._load_routers()
 
-    def load_routers(self):
-        # Update the path to load routers.txt from the new location inside blockchain/routers
-        routers_file = os.path.join(self.database_directory, 'routers.txt')
-        logging.debug(f"Attempting to load routers from: {routers_file}")
-        
-        if not os.path.exists(routers_file):
-            logging.error(f"Routers file not found: {routers_file}")
-            return
-
-        try:
-            with open(routers_file, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        address, name = line.split(',', 1)
-                        address = address.lower()
-                        abi = self.load_abi(name.strip())
-                        self.routers[address] = {
-                            'name': name.strip(),
-                            'abi': abi
-                        }
-            logging.info(f"Loaded {len(self.routers)} routers")
-            logging.debug(f"Loaded routers: {', '.join(self.routers.keys())}")
-        except Exception as e:
-            logging.error(f"Error loading routers: {str(e)}")
+    def _load_routers(self):
+        routers = {}
+        router_file_path = os.path.join(self.database_dir, 'routers.txt')
+        with open(router_file_path, 'r') as f:
+            for line in f:
+                address, name = line.strip().split(',')
+                abi_path = os.path.join(self.router_abis_dir, f"{name.lower().replace(' ', '_')}.json")
+                if os.path.exists(abi_path):
+                    with open(abi_path, 'r') as abi_file:
+                        abi = json.load(abi_file)
+                    routers[address.lower()] = {'name': name, 'abi': abi}
+                else:
+                    print(f"Warning: ABI file not found for {name}")
+        return routers
 
     def load_abi(self, router_name):
         # Update the path to load the ABI JSON files from the new location inside blockchain/routers

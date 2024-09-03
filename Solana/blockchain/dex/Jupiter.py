@@ -153,20 +153,3 @@ class TradeAnalyzer:
 
             # Sleep before checking again
             await asyncio.sleep(15)
-
-
-class TransactionMonitor:
-    def __init__(self, connector, token_loader):
-        self.connector = connector
-        self.trade_analyzer = TradeAnalyzer(connector, token_loader)
-
-    async def start_monitoring(self):
-        logging.info("Starting Solana network monitoring...")
-
-        # Continuously monitor wallet transfers and trades every 15 seconds
-        while True:
-            # Monitor trades
-            await self.trade_analyzer.analyze_trades()
-
-            # Wait for 15 seconds before checking again
-            await asyncio.sleep(15)

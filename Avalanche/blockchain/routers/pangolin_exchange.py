@@ -53,12 +53,15 @@ def analyze_pangolin_transaction(tx, w3, avax_to_usd, router_loader, token_loade
             return
 
         decoded_input = decode_transaction_input(w3, tx, abi)
-        function_name, params = decoded_input
-
-        log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader)
+        if decoded_input:
+            function_name, params = decoded_input
+            log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader)
+        else:
+            logging.warning(f"Failed to decode transaction input for {tx['hash'].hex()}")
 
     except Exception as e:
         logging.error(f"Error analyzing Pangolin transaction {tx['hash'].hex()}: {str(e)}")
+        logging.debug(f"Transaction details: {tx}")
 
 def decode_transaction_input(w3, tx, abi):
     contract = w3.eth.contract(abi=PANGOLIN)
@@ -67,6 +70,10 @@ def decode_transaction_input(w3, tx, abi):
     except Exception as e:
         logging.error(f"Failed to decode transaction input: {e}")
         return None
+    
+def is_avax_or_wavax(token_address, token_loader):
+    token_info = token_loader.get_token_info(token_address)
+    return token_info['label'] in ['AVAX', 'WAVAX']
 
 def log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
     simplified_function_name = extract_function_name(function_name)
@@ -78,16 +85,17 @@ def log_pangolin_transaction(tx, router_info, function_name, params, w3, avax_to
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
 
     logging.info("💱 Swap Details:")
-    if simplified_function_name.startswith('swapExact'):
-        log_pangolin_exact_swap(simplified_function_name, params, token_loader)
-    elif simplified_function_name.startswith('swap') and 'ForExact' in simplified_function_name:
-        log_pangolin_for_exact_swap(simplified_function_name, params, token_loader)
+    if 'swapExact' in simplified_function_name:
+        log_pangolin_exact_swap(simplified_function_name, params, token_loader, tx)
+    elif 'swap' in simplified_function_name and 'ForExact' in simplified_function_name:
+        log_pangolin_for_exact_swap(simplified_function_name, params, token_loader, tx)
     elif simplified_function_name.startswith('add'):
         log_pangolin_add_liquidity(simplified_function_name, params, token_loader)
     elif simplified_function_name.startswith('remove'):
         log_pangolin_remove_liquidity(simplified_function_name, params, token_loader)
     else:
         logging.info(f"Unhandled function: {simplified_function_name}")
+        logging.info(f"Parameters: {params}")
 
     logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
@@ -102,50 +110,65 @@ def convert_token_amount(amount, token_address, token_loader):
     decimals = token_info.get('decimals', 18)  # Get decimals directly from token_info
     return Decimal(amount) / Decimal(10 ** decimals)
 
-def log_pangolin_exact_swap(function_name, params, token_loader):
+def log_pangolin_exact_swap(function_name, params, token_loader, tx):
     logging.info("Exact Input Swap:")
-    if 'AVAX' in function_name:
-        input_token = 'AVAX'
-        if 'msg.value' in params:
-            input_amount = Web3.from_wei(params['msg.value'], 'ether')
-        else:
-            logging.error("msg.value is missing from transaction parameters")
-            return
+    
+    input_token_address = params['path'][0]
+    output_token_address = params['path'][-1]
+    
+    if is_avax_or_wavax(input_token_address, token_loader):
+        input_token = 'AVAX/WAVAX'
+        input_amount = Web3.from_wei(tx['value'], 'ether')
     else:
-        input_token = token_loader.get_token_info(params['path'][0])['label']
-        input_amount = convert_token_amount(params['amountIn'], params['path'][0], token_loader)
+        input_token = token_loader.get_token_info(input_token_address)['label']
+        input_amount = convert_token_amount(params['amountIn'], input_token_address, token_loader)
     
-    output_token = token_loader.get_token_info(params['path'][-1])['label']
-    output_amount = convert_token_amount(params['amountOutMin'], params['path'][-1], token_loader)
+    output_token = token_loader.get_token_info(output_token_address)['label']
     
+    if 'amountOutMin' in params:
+        output_amount = convert_token_amount(params['amountOutMin'], output_token_address, token_loader)
+        logging.info(f"Minimum Output Amount: {output_amount:.6f} {output_token}")
+    else:
+        logging.info(f"Minimum Output Amount: Not specified")
+
     logging.info(f"Input Token: {input_token}")
     logging.info(f"Input Amount: {input_amount:.6f}")
     logging.info(f"Output Token: {output_token}")
-    logging.info(f"Minimum Output Amount: {output_amount:.6f}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
 
-def log_pangolin_for_exact_swap(function_name, params, token_loader):
+def log_pangolin_for_exact_swap(function_name, params, token_loader, tx):
     logging.info("Exact Output Swap:")
-    if 'AVAX' in function_name:
-        output_token = 'AVAX'
-    else:
-        output_token = token_loader.get_token_info(params['path'][-1])['label']
     
-    input_token = token_loader.get_token_info(params['path'][0])['label']
+    input_token_address = params['path'][0]
+    output_token_address = params['path'][-1]
+    
+    if is_avax_or_wavax(output_token_address, token_loader):
+        output_token = 'AVAX/WAVAX'
+    else:
+        output_token = token_loader.get_token_info(output_token_address)['label']
+    
+    input_token = token_loader.get_token_info(input_token_address)['label']
     
     if 'amountInMax' in params:
-        input_amount = convert_token_amount(params['amountInMax'], params['path'][0], token_loader)
+        input_amount = convert_token_amount(params['amountInMax'], input_token_address, token_loader)
+        logging.info(f"Maximum Input Amount: {input_amount:.6f} {input_token}")
+    elif is_avax_or_wavax(input_token_address, token_loader):
+        input_amount = Web3.from_wei(tx['value'], 'ether')
+        logging.info(f"Maximum Input Amount: {input_amount:.6f} {input_token}")
     else:
-        logging.error("amountInMax is missing from transaction parameters")
-        return
+        logging.info(f"Maximum Input Amount: Not specified")
 
-    output_amount = convert_token_amount(params['amountOut'], params['path'][-1], token_loader)
-    
+    if 'amountOut' in params:
+        output_amount = convert_token_amount(params['amountOut'], output_token_address, token_loader)
+    elif 'amountOutMin' in params:
+        output_amount = convert_token_amount(params['amountOutMin'], output_token_address, token_loader)
+    else:
+        output_amount = "Not specified"
+
     logging.info(f"Input Token: {input_token}")
-    logging.info(f"Maximum Input Amount: {input_amount:.6f}")
     logging.info(f"Output Token: {output_token}")
-    logging.info(f"Output Amount: {output_amount:.6f}")
+    logging.info(f"Output Amount: {output_amount}")
     logging.info(f"Recipient: {params['to']}")
     logging.info(f"Deadline: {datetime.fromtimestamp(params['deadline'])}")
 

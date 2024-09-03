@@ -143,14 +143,31 @@ def log_create_increase_position(params, token_loader):
 
 def log_create_decrease_position(params, token_loader):
     logging.info("Create Decrease Position:")
-    _log_position_common(params, token_loader)
-    path = params.get('_path', [])
-    logging.info(f"Collateral Delta: {convert_amount(params['_collateralDelta'], path[0], token_loader):.6f} {token_loader.get_token_info(path[0])['label']}")
+    
+    index_token = token_loader.get_token_info(params['_indexToken'])
+    index_token_symbol = index_token['label'] if index_token else 'Unknown Token'
+    
+    size_delta = convert_amount(params['_sizeDelta'], params['_indexToken'], token_loader)
+    collateral_delta = convert_amount(params['_collateralDelta'], params['_indexToken'], token_loader)
+    
+    logging.info(f"Index Token: {index_token_symbol}")
+    logging.info(f"Size Delta: {size_delta:.6f} {index_token_symbol}")
+    logging.info(f"Collateral Delta: {collateral_delta:.6f} {index_token_symbol}")
+    logging.info(f"Is Long: {params['_isLong']}")
     logging.info(f"Receiver: {params['_receiver']}")
-    logging.info(f"Acceptable Price: {convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader):.6f} {token_loader.get_token_info(params['_indexToken'])['label']}")
-    logging.info(f"Min Out: {convert_amount(params['_minOut'], path[-1], token_loader):.6f} {token_loader.get_token_info(path[-1])['label']}")
-    logging.info(f"Execution Fee: {Web3.from_wei(params['_executionFee'], 'ether'):.6f} AVAX")
+    
+    acceptable_price = convert_amount(params['_acceptablePrice'], params['_indexToken'], token_loader)
+    logging.info(f"Acceptable Price: {acceptable_price:.6f} USD")
+    
+    execution_fee = Web3.from_wei(params['_executionFee'], 'ether')
+    logging.info(f"Execution Fee: {execution_fee:.6f} AVAX")
+    
     logging.info(f"Withdraw ETH: {params['_withdrawETH']}")
+
+def convert_amount(amount, token_address, token_loader):
+    token_info = token_loader.get_token_info(token_address)
+    decimals = token_info.get('decimals', 18)
+    return Decimal(amount) / Decimal(10 ** decimals)
 
 def log_cancel_increase_position(params):
     logging.info("Cancel Increase Position:")
