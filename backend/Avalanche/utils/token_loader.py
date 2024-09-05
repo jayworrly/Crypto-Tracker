@@ -34,11 +34,9 @@ class EnhancedTokenLoader:
                             'decimals': decimals,
                             'type': 'coin'
                         }
-                        logging.info(f"Loaded token: {label} ({address}) with {decimals} decimals")
+            logging.info(f"Loaded {len(self.tokens)} tokens")
         except Exception as e:
             logging.error(f"Error loading tokens from coins.txt: {str(e)}")
-
-        logging.info(f"Loaded {len(self.tokens)} tokens")
 
     @lru_cache(maxsize=1000)
     def fetch_token_details(self, address):

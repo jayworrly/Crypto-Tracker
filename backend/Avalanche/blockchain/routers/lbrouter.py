@@ -42,9 +42,15 @@ def extract_function_name(function_object):
 def convert_token_amount(amount, token_address, token_loader):
     token_info = token_loader.get_token_info(token_address)
     decimals = token_info.get('decimals', 18)
-    converted_amount = Decimal(amount) / Decimal(10 ** decimals)
-    logging.debug(f"Raw Amount: {amount} | Decimals: {decimals} | Converted Amount: {converted_amount}")
-    return converted_amount
+    return Decimal(amount) / Decimal(10 ** decimals)
+
+def decode_transaction_input(w3, tx, abi):
+    contract = w3.eth.contract(abi=abi)
+    try:
+        return contract.decode_function_input(tx['input'])
+    except Exception as e:
+        logging.error(f"Failed to decode transaction input: {e}")
+        return None
 
 # Main Transaction Analysis Function
 def analyze_lb_router_transaction(tx, w3, avax_to_usd, router_loader, token_loader):
@@ -69,38 +75,36 @@ def analyze_lb_router_transaction(tx, w3, avax_to_usd, router_loader, token_load
     except Exception as e:
         logging.error(f"Error analyzing LBRouter transaction {tx['hash'].hex()}: {str(e)}", exc_info=True)
 
-def decode_transaction_input(w3, tx, abi):
-    contract = w3.eth.contract(abi=abi)
-    try:
-        return contract.decode_function_input(tx['input'])
-    except Exception as e:
-        logging.error(f"Failed to decode transaction input: {e}")
-        return None
-
 # Logging Functions
 def log_lb_router_transaction(tx, router_info, function_name, params, w3, avax_to_usd, token_loader):
     simplified_function_name = extract_function_name(function_name)
     
+    log_transaction_summary(tx, router_info, simplified_function_name)
+    log_transaction_details(simplified_function_name, params, token_loader, tx)
+    log_addresses(tx)
+    log_transaction_costs(tx, avax_to_usd)
+    logging.info("====================================\n")
+
+def log_transaction_summary(tx, router_info, function_name):
     logging.info("\n🔄 Trade/Exchange on %s\n", router_info['name'])
     logging.info("📊 Transaction Summary:")
     logging.info(f"🔗 Hash: {tx['hash'].hex()}")
-    logging.info(f"⚙️ Function: {simplified_function_name}")
+    logging.info(f"⚙️ Function: {function_name}")
     logging.info(f"📍 Block: {tx['blockNumber']}\n")
 
+def log_transaction_details(function_name, params, token_loader, tx):
     logging.info("💱 Transaction Details:")
     if 'liquidityParameters' in params:
         log_liquidity_parameters(params['liquidityParameters'], token_loader)
-    elif simplified_function_name == 'removeLiquidity':
+    elif function_name == 'removeLiquidity':
         log_remove_liquidity(params, token_loader)
     else:
-        log_swap_details(simplified_function_name, params, token_loader, tx)
+        log_swap_details(function_name, params, token_loader, tx)
 
+def log_addresses(tx):
     logging.info("\n👤 Addresses:")
     logging.info(f"Sender: {tx['from']}")
     logging.info(f"Router: {tx['to']}\n")
-
-    log_transaction_costs(tx, avax_to_usd)
-    logging.info("====================================\n")
 
 def log_remove_liquidity(params, token_loader):
     try:
@@ -113,25 +117,28 @@ def log_remove_liquidity(params, token_loader):
         logging.info(f"Token Y: {token_y}")
         logging.info(f"Minimum Amount X: {amount_x_min:.6f}")
         logging.info(f"Minimum Amount Y: {amount_y_min:.6f}")
-        logging.info(f"Bin Step: {params['binStep']}")
+        logging.info(f"Bin Step: {params.get('binStep', 'N/A')}")
         
-        # Check if 'amountLiquidity' exists, otherwise use 'liquidity'
-        if 'amountLiquidity' in params:
-            logging.info(f"Amount Liquidity: {params['amountLiquidity']}")
-        elif 'liquidity' in params:
-            logging.info(f"Liquidity: {params['liquidity']}")
-        else:
-            logging.info("Liquidity information not available")
-        
-        logging.info(f"ID Slippage: {params['idSlippage']}")
-        logging.info(f"Active ID Desired: {params['activeIdDesired']}")
-        logging.info(f"To: {params['to']}")
-        
+        log_liquidity_info(params)
+        log_additional_params(params)
         log_deadline(params.get('deadline'))
     except KeyError as e:
         logging.error(f"Missing expected parameter in remove_liquidity: {e}")
     except Exception as e:
         logging.error(f"Error in log_remove_liquidity: {e}")
+
+def log_liquidity_info(params):
+    if 'amountLiquidity' in params:
+        logging.info(f"Amount Liquidity: {params['amountLiquidity']}")
+    elif 'liquidity' in params:
+        logging.info(f"Liquidity: {params['liquidity']}")
+    else:
+        logging.info("Liquidity information not available")
+
+def log_additional_params(params):
+    logging.info(f"ID Slippage: {params.get('idSlippage', 'N/A')}")
+    logging.info(f"Active ID Desired: {params.get('activeIdDesired', 'N/A')}")
+    logging.info(f"To: {params.get('to', 'N/A')}")
 
 def log_liquidity_parameters(lp, token_loader):
     token_x = token_loader.get_token_info(lp['tokenX'])['label']
@@ -198,7 +205,3 @@ def log_deadline(deadline):
                 logging.info(f"Deadline: {deadline_dt}")
     except (OSError, ValueError, OverflowError) as e:
         logging.warning(f"Invalid deadline value: {deadline}. Error: {str(e)}")
-
-# Debug Function
-def log_debug_info(message, data):
-    logging.debug(f"DEBUG - {message}: {json.dumps(data, default=str)}")

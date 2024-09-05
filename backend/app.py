@@ -10,7 +10,7 @@ import time
 app = Flask(__name__)
 CORS(app)
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 process = None
 output_buffer = []
@@ -44,7 +44,6 @@ def run_avalanche_script():
 @app.route('/start-flask', methods=['POST'])
 def start_flask():
     global process, output_buffer, stop_event
-    logging.debug("Received POST request to /start-flask")
     try:
         if process is None or process.poll() is not None:
             output_buffer = []
@@ -98,6 +97,6 @@ def shutdown_server():
 
 if __name__ == '__main__':
     try:
-        app.run(debug=True, host='localhost', port=5000)
+        app.run(host='localhost', port=5000)
     finally:
         shutdown_server()
