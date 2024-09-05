@@ -1,0 +1,67 @@
+.dashboard {
+    padding: 20px;
+}
+
+.nav-bar {
+    display: flex;
+    justify-content: space-around; /* Space items evenly */
+    background-color: #16213e; /* Background color for the nav bar */
+    padding: 10px 0;
+    border-radius: 5px; /* Rounded corners */
+    margin-bottom: 20px; /* Space below the nav bar */
+    z-index: 10; /* Ensure nav-bar is above other elements */
+    position: relative; /* Required for z-index to take effect */
+}
+
+.nav-item {
+    color: white; /* Text color */
+    text-decoration: none; /* Remove underline */
+    padding: 10px 15px; /* Padding for clickable area */
+    transition: background-color 0.3s; /* Smooth background transition */
+}
+
+.nav-item:hover {
+    background-color: #0f3460; /* Change background on hover */
+    border-radius: 5px; /* Rounded corners on hover */
+}
+/* Media queries for responsive design */
+@media screen and (max-width: 768px) {
+    /* For tablets and large phones */
+    .dashboard {
+        padding: 15px;
+    }
+
+    .nav-bar {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .nav-item {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    /* For smaller phones */
+    .dashboard {
+        padding: 10px;
+    }
+
+    .nav-bar {
+        padding: 5px 0;
+    }
+
+    .nav-item {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+}
+
+/* iOS-specific styles */
+@supports (-webkit-touch-callout: none) {
+    .dashboard {
+        min-height: -webkit-fill-available;
+    }
+}

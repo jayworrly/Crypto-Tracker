@@ -1,0 +1,65 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%; /* Ensure full height */
+  overflow: hidden; /* Prevent scrolling if not needed */
+}
+
+.App {
+  text-align: center;
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); /* Example gradient colors */
+  min-height: 100vh; /* Ensure it covers the full height */
+  color: white; /* Change text color for better contrast */
+  position: relative;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.App::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5); /* Dark overlay for better text visibility */
+  z-index: 1;
+}
+
+h1, h2, p {
+  position: relative; /* Ensure text is above the overlay */
+  z-index: 2;
+}

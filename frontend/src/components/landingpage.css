@@ -1,0 +1,79 @@
+/* src/components/LandingPage.css */
+.landing-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* Full height */
+    width: 100vw; /* Full width */
+    color: white;
+    text-align: center;
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    cursor: pointer; /* Change cursor to pointer */
+    position: relative; /* Add position relative */
+}
+
+.landing-page::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1; /* Ensure it's above other content */
+}
+
+.landing-page * {
+    position: relative; /* Ensure all child elements are above the overlay */
+    z-index: 2;
+}
+
+.btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #ff4757; /* Button color */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #ff6b81; /* Button hover color */
+}
+
+.landing-page:hover {
+    opacity: 0.9; /* Optional: Add a hover effect */
+}
+
+/* Media queries for responsive design */
+@media screen and (max-width: 768px) {
+    /* For tablets and large phones */
+    .landing-page {
+        padding: 20px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    /* For smaller phones */
+    .landing-page {
+        padding: 15px;
+    }
+
+    .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* iOS-specific styles */
+@supports (-webkit-touch-callout: none) {
+    .landing-page {
+        height: -webkit-fill-available;
+    }
+}
